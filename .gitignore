@@ -2,3 +2,4 @@
 */.vite
 *.db
 .DS_Store
+*.tar

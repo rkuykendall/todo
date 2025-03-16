@@ -1,9 +1,12 @@
 services:
   backend:
-    image: node:18
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: todo-backend
+    image: todo-backend
     volumes:
-      # - /volume1/docker/todo-db:/app/backend/data  # SQLite stored persistently
+      # - /volume1/docker/todo:/app/backend/data  # SQLite stored persistently
       - /Users/rkuykendall/docker/todo-db:/data  # Persistent SQLite database
     ports:
       - "4000:4000"
@@ -31,6 +34,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: todo-frontend
+    image: todo-frontend
     ports:
       - "5173:5173"
     depends_on:
