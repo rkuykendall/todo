@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 
-const db = new Database("todo.db");
+const db = new Database("/data/todo.db");
 
 // Create the tasks table if it doesn't exist
 db.exec(`

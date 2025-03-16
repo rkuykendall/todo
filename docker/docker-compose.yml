@@ -2,10 +2,9 @@ services:
   backend:
     image: node:18
     container_name: todo-backend
-    working_dir: /app/backend
     volumes:
       # - /volume1/docker/todo-db:/app/backend/data  # SQLite stored persistently
-      - /Users/rkuykendall/docker/todo-db:/app/backend/data  # Persistent SQLite database
+      - /Users/rkuykendall/docker/todo-db:/data  # Persistent SQLite database
     ports:
       - "4000:4000"
     environment:
