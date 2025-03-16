@@ -1,0 +1,62 @@
+services:
+  backend:
+    image: node:18
+    container_name: todo-backend
+    working_dir: /app/backend
+    volumes:
+      # - /volume1/docker/todo-db:/app/backend/data  # SQLite stored persistently
+      - /Users/rkuykendall/docker/todo-db:/app/backend/data  # Persistent SQLite database
+    ports:
+      - "4000:4000"
+    environment:
+      - GIT_REPO=https://github.com/rkuykendall/todo.git  # Replace with your GitHub repo
+    command: >
+      sh -c "
+      mkdir -p /app &&
+      chmod 777 /app &&
+      cd /app &&
+
+      if [ -d .git ]; then
+        git reset --hard && git pull;
+      else
+        rm -rf /app/* && git clone --depth 1 $${GIT_REPO} /app;
+      fi;
+      
+      cd /app/backend &&
+      npm install &&
+      npm run build &&
+      npm start"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: todo-frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    environment:
+      - GIT_REPO=https://github.com/rkuykendall/todo.git  # Replace with your GitHub repo
+    command: >
+      sh -c "
+      mkdir -p /app &&
+      chmod 777 /app &&
+      cd /app &&
+
+      if [ -d .git ]; then
+        git reset --hard && git pull;
+      else
+        rm -rf /app/* && git clone --depth 1 $${GIT_REPO} /app;
+      fi;
+
+      if [ ! -d /app/frontend ]; then
+        echo 'Error: Frontend folder is missing in repository!';
+        exit 1;
+      fi;
+
+      cd /app/frontend &&
+      npm install &&
+      npm run build &&
+      npm install -g serve &&
+      serve -s dist -l 5173"
