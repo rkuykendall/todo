@@ -1,64 +1,55 @@
 import { useEffect, useState } from "react";
-
-interface Task {
-  id: number;
-  title: string;
-  completed: boolean;
-}
+import { useDispatch, useSelector } from "react-redux";
+import { RootState, AppDispatch } from "./store";
+import { fetchTasks, addTask, toggleTask, deleteTask } from "./taskSlice";
 
 function App() {
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const dispatch = useDispatch<AppDispatch>();
+  const { tasks, loading, error } = useSelector((state: RootState) => state.tasks);
   const [newTask, setNewTask] = useState("");
 
-  // Fetch tasks from backend
   useEffect(() => {
-    fetch("http://localhost:4000/tasks")
-      .then(res => res.json())
-      .then(setTasks);
-  }, []);
+    dispatch(fetchTasks());
+  }, [dispatch]);
 
-  // Add a new task
-  const addTask = async () => {
+  const handleAddTask = () => {
     if (!newTask.trim()) return;
-    const res = await fetch("http://localhost:4000/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: newTask }),
-    });
-    const task = await res.json();
-    setTasks([...tasks, task]);
+    dispatch(addTask(newTask));
     setNewTask("");
-  };
-
-  // Toggle task completion
-  const toggleTask = async (id: number, completed: boolean) => {
-    await fetch(`http://localhost:4000/tasks/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ completed: !completed }),
-    });
-    setTasks(tasks.map(task => (task.id === id ? { ...task, completed: !completed } : task)));
-  };
-
-  // Delete task
-  const deleteTask = async (id: number) => {
-    await fetch(`http://localhost:4000/tasks/${id}`, { method: "DELETE" });
-    setTasks(tasks.filter(task => task.id !== id));
   };
 
   return (
     <div>
       <h1>To-Do List</h1>
-      <input value={newTask} onChange={e => setNewTask(e.target.value)} />
-      <button onClick={addTask}>Add</button>
-      <ul>
-        {tasks.map(task => (
-          <li key={task.id} style={{ textDecoration: task.completed ? "line-through" : "none" }}>
-            <span onClick={() => toggleTask(task.id, task.completed)}>{task.title}</span>
-            <button onClick={() => deleteTask(task.id)}>❌</button>
-          </li>
-        ))}
-      </ul>
+
+      {error && <p style={{ color: "red" }}>{error}</p>}
+      
+      <label>
+        New Task:{" "}
+        <input
+          value={newTask}
+          onChange={e => setNewTask(e.target.value)}
+          placeholder="Enter a task"
+        />
+      </label>
+      <button onClick={handleAddTask} disabled={!newTask.trim()}>
+        Add
+      </button>
+
+      {loading ? (
+        <p>Loading tasks...</p>
+      ) : (
+        <ul>
+          {tasks.map(task => (
+            <li key={task.id} style={{ textDecoration: task.completed ? "line-through" : "none" }}>
+              <span onClick={() => dispatch(toggleTask({ id: task.id, completed: task.completed }))}>
+                {task.title}
+              </span>
+              <button onClick={() => dispatch(deleteTask(task.id))}>❌</button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
