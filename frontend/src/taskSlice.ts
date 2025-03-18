@@ -12,7 +12,7 @@ interface TaskState {
   error: string | null;
 }
 
-const API_DOMAIN = import.meta.env.VITE_API_DOMAIN || "http://localhost:4000";
+const API_DOMAIN = import.meta.env.VITE_API_DOMAIN || "http://wat:4000";
 
 // Initial state
 const initialState: TaskState = {

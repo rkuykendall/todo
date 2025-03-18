@@ -6,12 +6,12 @@ services:
     container_name: todo-backend
     image: todo-backend
     volumes:
-      - /volume1/docker/todo:/data  # SQLite stored persistently
-      # - /Users/rkuykendall/docker/todo-db:/data  # Persistent SQLite database
+      - /volume1/docker/todo:/data
+      # - /Users/rkuykendall/docker/todo-db:/data
     ports:
       - "4000:4000"
     environment:
-      - GIT_REPO=https://github.com/rkuykendall/todo.git  # Replace with your GitHub repo
+      - GIT_REPO=https://github.com/rkuykendall/todo.git
     command: >
       sh -c "
       mkdir -p /app &&
@@ -34,7 +34,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - API_DOMAIN=localhost:4000
+        - API_DOMAIN=http://wat:4000
     container_name: todo-frontend
     image: todo-frontend
     ports:
@@ -42,8 +42,8 @@ services:
     depends_on:
       - backend
     environment:
-      - API_DOMAIN=localhost:4000
-      - GIT_REPO=https://github.com/rkuykendall/todo.git  # Replace with your GitHub repo
+      - API_DOMAIN=http://wat:4000
+      - GIT_REPO=https://github.com/rkuykendall/todo.git
     command: >
       sh -c "
       mkdir -p /app &&
