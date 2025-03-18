@@ -42,7 +42,7 @@ services:
     depends_on:
       - backend
     environment:
-      - API_DOMAIN=http://wat:4000
+      - API_DOMAIN=http://wat:4000/
       - GIT_REPO=https://github.com/rkuykendall/todo.git
     command: >
       sh -c "
@@ -63,6 +63,6 @@ services:
 
       cd /app/frontend &&
       npm install &&
-      npm run build &&
+      VITE_API_DOMAIN=${API_DOMAIN} npm run build &&
       npm install -g serve &&
       serve -s dist -l 5173"
