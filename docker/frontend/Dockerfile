@@ -4,3 +4,6 @@ FROM node:18
 RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app/frontend
+
+ARG API_DOMAIN
+ENV VITE_API_DOMAIN=${API_DOMAIN}

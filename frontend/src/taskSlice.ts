@@ -12,6 +12,8 @@ interface TaskState {
   error: string | null;
 }
 
+const API_DOMAIN = import.meta.env.VITE_API_DOMAIN || "http://localhost:4000";
+
 // Initial state
 const initialState: TaskState = {
   tasks: [],
@@ -21,13 +23,13 @@ const initialState: TaskState = {
 
 // Fetch tasks from API
 export const fetchTasks = createAsyncThunk("tasks/fetchTasks", async () => {
-  const res = await fetch("http://localhost:4000/tasks");
+  const res = await fetch(`${API_DOMAIN}/tasks`);
   return res.json();
 });
 
 // Add a new task
 export const addTask = createAsyncThunk("tasks/addTask", async (title: string) => {
-  const res = await fetch("http://localhost:4000/tasks", {
+  const res = await fetch(`${API_DOMAIN}/tasks`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ title }),
@@ -39,7 +41,7 @@ export const addTask = createAsyncThunk("tasks/addTask", async (title: string) =
 export const toggleTask = createAsyncThunk(
   "tasks/toggleTask",
   async ({ id, completed }: { id: number; completed: boolean }) => {
-    await fetch(`http://localhost:4000/tasks/${id}`, {
+    await fetch(`${API_DOMAIN}/tasks/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ completed: !completed }),
@@ -50,7 +52,7 @@ export const toggleTask = createAsyncThunk(
 
 // Delete a task
 export const deleteTask = createAsyncThunk("tasks/deleteTask", async (id: number) => {
-  await fetch(`http://localhost:4000/tasks/${id}`, { method: "DELETE" });
+  await fetch(`${API_DOMAIN}/tasks/${id}`, { method: "DELETE" });
   return id;
 });
 
