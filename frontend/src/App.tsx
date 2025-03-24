@@ -1,51 +1,74 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { RootState, AppDispatch } from "./store";
-import { fetchTasks, addTask, toggleTask, deleteTask } from "./taskSlice";
+import { fetchTickets, addTicket, deleteTicket } from "./ticketSlice";
 
 function App() {
   const dispatch = useDispatch<AppDispatch>();
-  const { tasks, loading, error } = useSelector((state: RootState) => state.tasks);
-  const [newTask, setNewTask] = useState("");
+  const { tickets, loading, error } = useSelector((state: RootState) => state.tickets);
+  const [newTitle, setNewTitle] = useState("");
 
   useEffect(() => {
-    dispatch(fetchTasks());
+    dispatch(fetchTickets());
   }, [dispatch]);
 
-  const handleAddTask = () => {
-    if (!newTask.trim()) return;
-    dispatch(addTask(newTask));
-    setNewTask("");
+  const handleAddTicket = () => {
+    if (!newTitle.trim()) return;
+
+    dispatch(
+      addTicket({
+        title: newTitle,
+        // You can also set defaults for any other fields if needed
+        done_on_child_done: false,
+        deadline: null,
+        last_drawn: null,
+        done: null,
+        can_draw_monday: true, // default: allow draw today?
+        must_draw_monday: false,
+        can_draw_tuesday: false,
+        must_draw_tuesday: false,
+        can_draw_wednesday: false,
+        must_draw_wednesday: false,
+        can_draw_thursday: false,
+        must_draw_thursday: false,
+        can_draw_friday: false,
+        must_draw_friday: false,
+        can_draw_saturday: false,
+        must_draw_saturday: false,
+        can_draw_sunday: false,
+        must_draw_sunday: false,
+      })
+    );
+
+    setNewTitle("");
   };
 
   return (
     <div>
-      <h1>To-Do List</h1>
+      <h1>Ticket List</h1>
 
       {error && <p style={{ color: "red" }}>{error}</p>}
-      
+
       <label>
-        New Task:{" "}
+        New Ticket:{" "}
         <input
-          value={newTask}
-          onChange={e => setNewTask(e.target.value)}
-          placeholder="Enter a task"
+          value={newTitle}
+          onChange={e => setNewTitle(e.target.value)}
+          placeholder="Enter a ticket title"
         />
       </label>
-      <button onClick={handleAddTask} disabled={!newTask.trim()}>
+      <button onClick={handleAddTicket} disabled={!newTitle.trim()}>
         Add
       </button>
 
       {loading ? (
-        <p>Loading tasks...</p>
+        <p>Loading tickets...</p>
       ) : (
         <ul>
-          {tasks.map(task => (
-            <li key={task.id} style={{ textDecoration: task.completed ? "line-through" : "none" }}>
-              <span onClick={() => dispatch(toggleTask({ id: task.id, completed: task.completed }))}>
-                {task.title}
-              </span>
-              <button onClick={() => dispatch(deleteTask(task.id))}>❌</button>
+          {tickets.map(ticket => (
+            <li key={ticket.id} style={{ textDecoration: ticket.done ? "line-through" : "none" }}>
+              {ticket.title}
+              <button onClick={() => dispatch(deleteTicket(ticket.id))}>❌</button>
             </li>
           ))}
         </ul>

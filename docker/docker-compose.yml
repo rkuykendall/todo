@@ -34,7 +34,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - API_DOMAIN=http://wat:4000
+        - VITE_API_DOMAIN=http://my-domain:4000
     container_name: todo-frontend
     image: todo-frontend
     ports:
@@ -42,7 +42,7 @@ services:
     depends_on:
       - backend
     environment:
-      - API_DOMAIN=http://wat:4000/
+      - VITE_API_DOMAIN=http://my-domain:4000
       - GIT_REPO=https://github.com/rkuykendall/todo.git
     command: >
       sh -c "
@@ -63,6 +63,6 @@ services:
 
       cd /app/frontend &&
       npm install &&
-      VITE_API_DOMAIN=${API_DOMAIN} npm run build &&
+      npm run build &&
       npm install -g serve &&
       serve -s dist -l 5173"
