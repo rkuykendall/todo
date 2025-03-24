@@ -1,8 +1,11 @@
 import Database from "better-sqlite3";
-import { v4 as uuidv4 } from "uuid";
+import * as dotenv from "dotenv";
 
-// const db = new Database("../data/todo.db");
-const db = new Database("/data/todo.db");
+dotenv.config();
+
+const dbPath = process.env.DATABASE_PATH || '/data/todo.db';
+
+const db = new Database(dbPath);
 
 db.pragma("foreign_keys = ON");
 
