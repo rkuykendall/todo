@@ -1,7 +1,8 @@
 import Database from "better-sqlite3";
 import { v4 as uuidv4 } from "uuid";
 
-const db = new Database("../data/todo.db");
+// const db = new Database("../data/todo.db");
+const db = new Database("/data/todo.db");
 
 db.pragma("foreign_keys = ON");
 
