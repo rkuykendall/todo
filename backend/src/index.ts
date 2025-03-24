@@ -176,8 +176,11 @@ app.patch("/ticket_draw/:id", (req, res) => {
 
   const setClause = Object.keys(updates).map(key => `${key} = ?`).join(", ");
   const updateStmt = db.prepare(`UPDATE ticket_draw SET ${setClause} WHERE id = ?`);
-  updateStmt.run(...Object.values(updates), id);
-
+  const coercedValues = Object.values(updates).map(val =>
+    typeof val === "boolean" ? Number(val) : val
+  );
+  updateStmt.run(...coercedValues, id);
+  
   if (updates.done === true) {
     db.prepare(`
       UPDATE ticket SET last_drawn = CURRENT_TIMESTAMP WHERE id = ?
