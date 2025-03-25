@@ -13,16 +13,60 @@ const dayFields = [
   "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"
 ];
 
+function normalizeTicket(ticket: any) {
+  const boolFields = [
+    "done_on_child_done",
+    "can_draw_monday", "must_draw_monday",
+    "can_draw_tuesday", "must_draw_tuesday",
+    "can_draw_wednesday", "must_draw_wednesday",
+    "can_draw_thursday", "must_draw_thursday",
+    "can_draw_friday", "must_draw_friday",
+    "can_draw_saturday", "must_draw_saturday",
+    "can_draw_sunday", "must_draw_sunday",
+  ];
+
+  const normalized = { ...ticket };
+  for (const key of boolFields) {
+    if (key in normalized) {
+      normalized[key] = Boolean(normalized[key]);
+    }
+  }
+
+  return normalized;
+}
+
+function denormalizeTicket(input: Record<string, any>): Record<string, any> {
+  const boolFields = [
+    "done_on_child_done",
+    "can_draw_monday", "must_draw_monday",
+    "can_draw_tuesday", "must_draw_tuesday",
+    "can_draw_wednesday", "must_draw_wednesday",
+    "can_draw_thursday", "must_draw_thursday",
+    "can_draw_friday", "must_draw_friday",
+    "can_draw_saturday", "must_draw_saturday",
+    "can_draw_sunday", "must_draw_sunday",
+  ];
+
+  const denormalized = { ...input };
+  for (const key of boolFields) {
+    if (key in denormalized) {
+      denormalized[key] = denormalized[key] ? 1 : 0;
+    }
+  }
+  return denormalized;
+}
+
+
 app.get("/tickets", (req, res) => {
-  const tickets: Ticket[] = db.prepare<unknown[], Ticket>("SELECT * FROM ticket").all();
-  res.json(tickets);
+  const raw = db.prepare("SELECT * FROM ticket").all();
+  const normalized = raw.map(normalizeTicket);
+  res.json(normalized);
 });
 
 app.get("/tickets/:id", (req, res) => {
-  const { id } = req.params;
-  const ticket: Ticket | undefined = db.prepare<unknown[], Ticket>("SELECT * FROM ticket WHERE id = ?").get(id);
+  const ticket = db.prepare("SELECT * FROM ticket WHERE id = ?").get(req.params.id);
   if (!ticket) return res.status(404).json({ error: "Ticket not found" });
-  res.json(ticket);
+  res.json(normalizeTicket(ticket));
 });
 
 app.post("/tickets", (req, res) => {
@@ -70,7 +114,7 @@ app.put("/tickets/:id", (req, res) => {
     return res.status(400).json({ error: result.error.flatten() });
   }
 
-  const updates = result.data;
+  const updates = denormalizeTicket(result.data);
 
   const updateKeys = Object.keys(updates);
   if (updateKeys.length === 0) {
@@ -79,9 +123,10 @@ app.put("/tickets/:id", (req, res) => {
 
   const setClause = updateKeys.map(key => `${key} = ?`).join(", ");
   const updateStmt = db.prepare(`UPDATE ticket SET ${setClause} WHERE id = ?`);
-  updateStmt.run(...updateKeys.map(k => (updates as any)[k]), id);
+  updateStmt.run(...updateKeys.map(k => updates[k]), id);
 
-  res.json({ id, updated: true });
+  const updated = db.prepare("SELECT * FROM ticket WHERE id = ?").get(id);
+  res.json(normalizeTicket(updated));
 });
 
 app.delete("/tickets/:id", (req, res) => {
@@ -115,7 +160,7 @@ app.get("/ticket_draw", (req, res) => {
     WHERE DATE(created_at) = ?
   `).all(today);
 
-  res.json(draws);
+  res.json(draws.map(normalizeTicket));
 });
 
 app.post("/ticket_draw", (req, res) => {
@@ -153,7 +198,7 @@ app.post("/ticket_draw", (req, res) => {
     WHERE DATE(created_at) = ?
   `).all(today);
 
-  res.status(201).json(todaysDraws);
+  res.status(201).json(todaysDraws.map(normalizeTicket));
 });
 
 app.patch("/ticket_draw/:id", (req, res) => {
@@ -188,5 +233,5 @@ app.patch("/ticket_draw/:id", (req, res) => {
   }
 
   const updated = db.prepare("SELECT * FROM ticket_draw WHERE id = ?").get(id);
-  res.json(updated);
+  res.json(normalizeTicket(updated));
 });

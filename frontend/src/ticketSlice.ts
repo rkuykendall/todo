@@ -55,6 +55,22 @@ export const addTicket = createAsyncThunk("tickets/addTicket", async (data: Part
   return { ...data, id: result.id } as Ticket;
 });
 
+export const updateTicket = createAsyncThunk(
+  "tickets/updateTicket",
+  async ({ id, updates }: { id: string; updates: Partial<Ticket> }) => {
+    const res = await fetch(`${API_DOMAIN}/tickets/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    });
+
+    if (!res.ok) throw new Error("Failed to update ticket");
+
+    const updated = await fetch(`${API_DOMAIN}/tickets/${id}`);
+    return await updated.json();
+  }
+);
+
 // Delete a ticket
 export const deleteTicket = createAsyncThunk("tickets/deleteTicket", async (id: string) => {
   await fetch(`${API_DOMAIN}/tickets/${id}`, { method: "DELETE" });
@@ -84,7 +100,13 @@ const ticketSlice = createSlice({
       })
       .addCase(deleteTicket.fulfilled, (state, action: PayloadAction<string>) => {
         state.tickets = state.tickets.filter(ticket => ticket.id !== action.payload);
-      });
+      })
+      .addCase(updateTicket.fulfilled, (state, action: PayloadAction<Ticket>) => {
+        const index = state.tickets.findIndex(ticket => ticket.id === action.payload.id);
+        if (index !== -1) {
+          state.tickets[index] = action.payload;
+        }
+      });   
   },
 });
 
