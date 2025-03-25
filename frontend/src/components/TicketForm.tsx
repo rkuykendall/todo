@@ -1,9 +1,8 @@
-// src/components/TicketForm.tsx
 import { useState, useEffect } from "react";
 import { Ticket } from "../ticketSlice";
 
 const weekdays = [
-  "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"
+  "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
 ];
 
 interface TicketFormProps {
@@ -18,31 +17,35 @@ export default function TicketForm({
   submitLabel = "Save",
 }: TicketFormProps) {
   const [title, setTitle] = useState(initialValues.title || "");
-  const [doneOnChildDone, setDoneOnChildDone] = useState(initialValues.done_on_child_done ?? true);
+  const [doneOnChildDone, setDoneOnChildDone] = useState(
+    initialValues.done_on_child_done ?? false
+  );
+
   const [dayChecks, setDayChecks] = useState<Record<string, boolean>>(
     Object.fromEntries(
-      weekdays.map(day => [
+      weekdays.map((day) => [
         `can_draw_${day}`,
-        Boolean(initialValues[`can_draw_${day}` as keyof Ticket])
+        Boolean(initialValues[`can_draw_${day}` as keyof Ticket]),
       ])
     ) as Record<string, boolean>
   );
-  
+
   useEffect(() => {
     setTitle(initialValues.title || "");
     setDoneOnChildDone(initialValues.done_on_child_done ?? false);
     setDayChecks(
       Object.fromEntries(
-        weekdays.map(day => [
+        weekdays.map((day) => [
           `can_draw_${day}`,
-          Boolean(initialValues[`can_draw_${day}` as keyof Ticket])
+          Boolean(initialValues[`can_draw_${day}` as keyof Ticket]),
         ])
       ) as Record<string, boolean>
     );
-  }, [initialValues]);
+  }, [initialValues?.id]);
   
   const handleSubmit = () => {
     if (!title.trim()) return;
+
     onSubmit({
       title,
       done_on_child_done: doneOnChildDone,
@@ -56,7 +59,7 @@ export default function TicketForm({
         Title:{" "}
         <input
           value={title}
-          onChange={e => setTitle(e.target.value)}
+          onChange={(e) => setTitle(e.target.value)}
           placeholder="Ticket title"
         />
       </label>
@@ -66,7 +69,7 @@ export default function TicketForm({
           <input
             type="checkbox"
             checked={doneOnChildDone}
-            onChange={e => setDoneOnChildDone(e.target.checked)}
+            onChange={(e) => setDoneOnChildDone(e.target.checked)}
           />
           Done when all draws are done
         </label>
@@ -75,15 +78,15 @@ export default function TicketForm({
       <div style={{ marginTop: 10 }}>
         <strong>Can Draw On:</strong>
         <div>
-          {weekdays.map(day => (
+          {weekdays.map((day) => (
             <label key={day} style={{ marginRight: 8 }}>
               <input
                 type="checkbox"
                 checked={dayChecks[`can_draw_${day}`]}
-                onChange={e =>
-                  setDayChecks(prev => ({
+                onChange={(e) =>
+                  setDayChecks((prev) => ({
                     ...prev,
-                    [`can_draw_${day}`]: e.target.checked
+                    [`can_draw_${day}`]: e.target.checked,
                   }))
                 }
               />

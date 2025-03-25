@@ -106,6 +106,7 @@ function App() {
         }}>
           <h3>Edit Ticket</h3>
           <TicketForm
+            key={editingTicket.id}
             initialValues={editingTicket}
             submitLabel="Save Changes"
             onSubmit={(updates) => {
