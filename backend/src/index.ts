@@ -57,7 +57,7 @@ function denormalizeTicket(input: Record<string, any>): Record<string, any> {
 }
 
 
-app.get("/tickets", (req, res) => {
+app.get("/tickets", (_req, res) => {
   const raw = db.prepare("SELECT * FROM ticket").all();
   const normalized = raw.map(normalizeTicket);
   res.json(normalized);
@@ -149,10 +149,10 @@ function getTodayDayString(): string {
 
 // Utility: Get ISO date string for YYYY-MM-DD (used for filtering)
 function getTodayDate(): string {
-  return new Date().toISOString().split("T")[0];
+  return new Date().toISOString().split("T")[0]!;
 }
 
-app.get("/ticket_draw", (req, res) => {
+app.get("/ticket_draw", (_req, res) => {
   const today = getTodayDate();
 
   const draws = db.prepare(`
@@ -163,7 +163,7 @@ app.get("/ticket_draw", (req, res) => {
   res.json(draws.map(normalizeTicket));
 });
 
-app.post("/ticket_draw", (req, res) => {
+app.post("/ticket_draw", (_req, res) => {
   const today = getTodayDate();
   const todayDay = getTodayDayString(); // e.g. "wednesday"
 

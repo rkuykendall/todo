@@ -1,0 +1,6 @@
+{
+  "name": "todo",
+  "private": true,
+  "workspaces": ["frontend", "backend", "shared"]
+}
+  
