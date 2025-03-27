@@ -15,10 +15,6 @@ import {
 } from "./drawSlice";
 import TicketForm from "./components/TicketForm";
 
-const weekdays = [
-  "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
-];
-
 function App() {
   const dispatch = useDispatch<AppDispatch>();
   const { tickets, loading: loadingTickets } = useSelector((state: RootState) => state.tickets);
@@ -59,11 +55,11 @@ function App() {
               <li key={draw.id}>
                 <span>{ticket?.title || "Untitled"}</span>{" "}
                 {draw.done || draw.skipped ? (
-                  <button onClick={() => undoDraw(draw.id)}>↩️ Undo</button>
+                  <button onClick={() => { undoDraw(draw.id); }}>↩️ Undo</button>
                 ) : (
                   <>
-                    <button onClick={() => markDone(draw.id)}>✅ Done</button>
-                    <button onClick={() => markSkipped(draw.id)}>❌ Skip</button>
+                    <button onClick={() => { markDone(draw.id); }}>✅ Done</button>
+                    <button onClick={() => { markSkipped(draw.id); }}>❌ Skip</button>
                   </>
                 )}
               </li>
@@ -90,7 +86,7 @@ function App() {
             <li key={ticket.id}>
               <strong>{ticket.title}</strong>{" "}
               {ticket.done && <span>(Done)</span>}
-              <button onClick={() => setEditingTicket(ticket)}>✏️ Edit</button>
+              <button onClick={() => { setEditingTicket(ticket); }}>✏️ Edit</button>
               <button onClick={() => dispatch(deleteTicket(ticket.id))}>❌</button>
             </li>
           ))}
@@ -114,7 +110,7 @@ function App() {
               setEditingTicket(null);
             }}
           />
-          <button onClick={() => setEditingTicket(null)}>Cancel</button>
+          <button onClick={() => { setEditingTicket(null); }}>Cancel</button>
         </div>
       )}
     </div>
