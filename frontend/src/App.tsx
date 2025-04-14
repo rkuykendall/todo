@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { Ticket } from '@todo/shared';
 import { RootState, AppDispatch } from './store';
 import {
   fetchTickets,
   addTicket,
   deleteTicket,
   updateTicket,
-  Ticket,
 } from './ticketSlice';
 import { fetchDraws, patchDraw, createDraws } from './drawSlice';
 import TicketForm from './components/TicketForm';

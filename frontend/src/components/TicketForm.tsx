@@ -1,5 +1,5 @@
+import { Ticket } from '@todo/shared';
 import { useState, useEffect } from 'react';
-import { Ticket } from '../ticketSlice';
 
 const weekdays = [
   'monday',
