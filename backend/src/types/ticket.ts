@@ -1,19 +1,19 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 const dayFields = [
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-  "sunday",
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
 ] as const;
 
 type Day = (typeof dayFields)[number];
 
 export const NewTicketSchema = z.object({
-  title: z.string().min(1, "Title is required"),
+  title: z.string().min(1, 'Title is required'),
   done_on_child_done: z.boolean().optional().default(true),
   done: z.string().datetime().optional().nullable(),
   last_drawn: z.string().datetime().optional().nullable(),

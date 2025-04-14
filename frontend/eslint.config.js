@@ -1,7 +1,7 @@
 // frontend/eslint.config.js
-import base from '../eslint.config.js'
-import reactDom from 'eslint-plugin-react-dom'
-import reactx from 'eslint-plugin-react-x'
+import base from '../eslint.config.js';
+import reactDom from 'eslint-plugin-react-dom';
+import reactx from 'eslint-plugin-react-x';
 
 export default [
   ...base,
@@ -24,4 +24,4 @@ export default [
       reactx.configs.recommended,
     ],
   },
-]
+];

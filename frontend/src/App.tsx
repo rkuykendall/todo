@@ -1,24 +1,24 @@
-import { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { RootState, AppDispatch } from "./store";
+import { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState, AppDispatch } from './store';
 import {
   fetchTickets,
   addTicket,
   deleteTicket,
   updateTicket,
   Ticket,
-} from "./ticketSlice";
-import {
-  fetchDraws,
-  patchDraw,
-  createDraws,
-} from "./drawSlice";
-import TicketForm from "./components/TicketForm";
+} from './ticketSlice';
+import { fetchDraws, patchDraw, createDraws } from './drawSlice';
+import TicketForm from './components/TicketForm';
 
 function App() {
   const dispatch = useDispatch<AppDispatch>();
-  const { tickets, loading: loadingTickets } = useSelector((state: RootState) => state.tickets);
-  const { draws, loading: loadingDraws } = useSelector((state: RootState) => state.draws);
+  const { tickets, loading: loadingTickets } = useSelector(
+    (state: RootState) => state.tickets
+  );
+  const { draws, loading: loadingDraws } = useSelector(
+    (state: RootState) => state.draws
+  );
   const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
 
   useEffect(() => {
@@ -39,9 +39,11 @@ function App() {
   };
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: "1rem" }}>
+    <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
       <h1>🎯 Today’s Draws</h1>
-      <button onClick={() => dispatch(createDraws())}>🎲 Draw Tickets for Today</button>
+      <button onClick={() => dispatch(createDraws())}>
+        🎲 Draw Tickets for Today
+      </button>
 
       {loadingDraws ? (
         <p>Loading draws...</p>
@@ -49,17 +51,35 @@ function App() {
         <p>No draws today!</p>
       ) : (
         <ul>
-          {draws.map(draw => {
-            const ticket = tickets.find(t => t.id === draw.ticket_id);
+          {draws.map((draw) => {
+            const ticket = tickets.find((t) => t.id === draw.ticket_id);
             return (
               <li key={draw.id}>
-                <span>{ticket?.title || "Untitled"}</span>{" "}
+                <span>{ticket?.title || 'Untitled'}</span>{' '}
                 {draw.done || draw.skipped ? (
-                  <button onClick={() => { undoDraw(draw.id); }}>↩️ Undo</button>
+                  <button
+                    onClick={() => {
+                      undoDraw(draw.id);
+                    }}
+                  >
+                    ↩️ Undo
+                  </button>
                 ) : (
                   <>
-                    <button onClick={() => { markDone(draw.id); }}>✅ Done</button>
-                    <button onClick={() => { markSkipped(draw.id); }}>❌ Skip</button>
+                    <button
+                      onClick={() => {
+                        markDone(draw.id);
+                      }}
+                    >
+                      ✅ Done
+                    </button>
+                    <button
+                      onClick={() => {
+                        markSkipped(draw.id);
+                      }}
+                    >
+                      ❌ Skip
+                    </button>
                   </>
                 )}
               </li>
@@ -82,24 +102,34 @@ function App() {
         <p>Loading tickets...</p>
       ) : (
         <ul>
-          {tickets.map(ticket => (
+          {tickets.map((ticket) => (
             <li key={ticket.id}>
-              <strong>{ticket.title}</strong>{" "}
+              <strong>{ticket.title}</strong>{' '}
               {ticket.done && <span>(Done)</span>}
-              <button onClick={() => { setEditingTicket(ticket); }}>✏️ Edit</button>
-              <button onClick={() => dispatch(deleteTicket(ticket.id))}>❌</button>
+              <button
+                onClick={() => {
+                  setEditingTicket(ticket);
+                }}
+              >
+                ✏️ Edit
+              </button>
+              <button onClick={() => dispatch(deleteTicket(ticket.id))}>
+                ❌
+              </button>
             </li>
           ))}
         </ul>
       )}
 
       {editingTicket && (
-        <div style={{
-          background: "#333",
-          padding: 16,
-          border: "1px solid #ccc",
-          marginTop: 16
-        }}>
+        <div
+          style={{
+            background: '#333',
+            padding: 16,
+            border: '1px solid #ccc',
+            marginTop: 16,
+          }}
+        >
           <h3>Edit Ticket</h3>
           <TicketForm
             key={editingTicket.id}
@@ -110,7 +140,13 @@ function App() {
               setEditingTicket(null);
             }}
           />
-          <button onClick={() => { setEditingTicket(null); }}>Cancel</button>
+          <button
+            onClick={() => {
+              setEditingTicket(null);
+            }}
+          >
+            Cancel
+          </button>
         </div>
       )}
     </div>

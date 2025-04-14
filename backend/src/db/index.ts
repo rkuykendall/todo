@@ -1,5 +1,5 @@
-import Database from "better-sqlite3";
-import * as dotenv from "dotenv";
+import Database from 'better-sqlite3';
+import * as dotenv from 'dotenv';
 
 dotenv.config();
 
@@ -7,7 +7,7 @@ const dbPath = process.env.DATABASE_PATH || '/data/todo.db';
 
 const db = new Database(dbPath);
 
-db.pragma("foreign_keys = ON");
+db.pragma('foreign_keys = ON');
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS ticket (

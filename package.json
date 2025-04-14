@@ -1,6 +1,12 @@
 {
   "name": "todo",
   "private": true,
-  "workspaces": ["frontend", "backend", "shared"]
+  "workspaces": [
+    "frontend",
+    "backend",
+    "shared"
+  ],
+  "devDependencies": {
+    "prettier": "^3.5.3"
+  }
 }
-  

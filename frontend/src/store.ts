@@ -1,6 +1,6 @@
-import { configureStore } from "@reduxjs/toolkit";
-import ticketReducer from "./ticketSlice";
-import drawReducer from "./drawSlice";
+import { configureStore } from '@reduxjs/toolkit';
+import ticketReducer from './ticketSlice';
+import drawReducer from './drawSlice';
 
 const store = configureStore({
   reducer: {
