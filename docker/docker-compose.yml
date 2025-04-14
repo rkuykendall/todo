@@ -12,22 +12,23 @@ services:
       - '4000:4000'
     environment:
       - GIT_REPO=https://github.com/rkuykendall/todo.git
-    command: >
-      sh -c "
-      mkdir -p /app &&
-      chmod 777 /app &&
-      cd /app &&
+    command: |
+      sh -c '
+      mkdir -p /app
+      chmod 777 /app
+      cd /app
 
       if [ -d .git ]; then
-        git reset --hard && git pull;
+        git reset --hard && git pull
       else
-        rm -rf /app/* && git clone --depth 1 $${GIT_REPO} /app;
-      fi;
+        rm -rf /app/* && git clone --depth 1 ${GIT_REPO} /app
+      fi
 
-      cd /app/backend &&
-      npm install &&
-      npm run build &&
-      npm start"
+      cd /app/backend
+      npm install
+      npm run build
+      npm start
+      '
 
   frontend:
     build:
@@ -44,25 +45,26 @@ services:
     environment:
       - VITE_API_DOMAIN=http://my-domain:4000
       - GIT_REPO=https://github.com/rkuykendall/todo.git
-    command: >
-      sh -c "
-      mkdir -p /app &&
-      chmod 777 /app &&
-      cd /app &&
+    command: |
+      sh -c '
+      mkdir -p /app
+      chmod 777 /app
+      cd /app
 
       if [ -d .git ]; then
-        git reset --hard && git pull;
+        git reset --hard && git pull
       else
-        rm -rf /app/* && git clone --depth 1 $${GIT_REPO} /app;
-      fi;
+        rm -rf /app/* && git clone --depth 1 ${GIT_REPO} /app
+      fi
 
       if [ ! -d /app/frontend ]; then
-        echo 'Error: Frontend folder is missing in repository!';
-        exit 1;
-      fi;
+        echo "Error: Frontend folder is missing in repository!"
+        exit 1
+      fi
 
-      cd /app/frontend &&
-      npm install &&
-      npm run build &&
-      npm install -g serve &&
-      serve -s dist -l 5173"
+      cd /app/frontend
+      npm install
+      npm run build
+      npm install -g serve
+      serve -s dist -l 5173
+      '
