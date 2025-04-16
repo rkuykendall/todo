@@ -7,27 +7,44 @@ services:
     image: todo-backend
     volumes:
       - /volume1/docker/todo:/data
-      # - /Users/rkuykendall/docker/todo-db:/data
     ports:
       - '4000:4000'
-    environment:
-      - GIT_REPO=https://github.com/rkuykendall/todo.git
     command: |
-      sh -c '
-      mkdir -p /app
-      chmod 777 /app
-      cd /app
+      bash -c '
+      main() {
+        set -euxo pipefail
+        echo "=== Starting backend container setup ==="
 
-      if [ -d .git ]; then
-        git reset --hard && git pull
-      else
-        rm -rf /app/* && git clone --depth 1 ${GIT_REPO} /app
-      fi
+        mkdir -p /app
+        chmod 777 /app
+        cd /app
+        echo "Current directory: $(pwd)"
 
-      cd /app/backend
-      npm install
-      npm run build
-      npm start
+        if [ -d .git ]; then
+          echo "Git repo already exists, pulling latest changes..."
+          git reset --hard
+          git pull
+        else
+          echo "Cloning repository into /app..."
+          rm -rf /app/*
+          timeout 30 git clone --depth 1 "https://github.com/rkuykendall/todo.git" /app || {
+            echo "❌ Git clone failed or timed out"
+            exit 1
+          }
+        fi
+
+        echo "Installing dependencies using npm workspaces..."
+        cd /app
+        npm install
+
+        echo "Building backend workspace..."
+        npm run build --workspace=backend
+
+        echo "Starting backend server..."
+        npm start --workspace=backend
+      }
+
+      main
       '
 
   frontend:
@@ -35,36 +52,53 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_DOMAIN=http://my-domain:4000
+        - VITE_API_DOMAIN=http://example.com:4000
     container_name: todo-frontend
     image: todo-frontend
     ports:
       - '5173:5173'
     depends_on:
       - backend
-    environment:
-      - VITE_API_DOMAIN=http://my-domain:4000
-      - GIT_REPO=https://github.com/rkuykendall/todo.git
     command: |
-      sh -c '
-      mkdir -p /app
-      chmod 777 /app
-      cd /app
+      bash -c '
+      main() {
+        set -euxo pipefail
+        echo "=== Starting frontend container setup ==="
 
-      if [ -d .git ]; then
-        git reset --hard && git pull
-      else
-        rm -rf /app/* && git clone --depth 1 ${GIT_REPO} /app
-      fi
+        mkdir -p /app
+        chmod 777 /app
+        cd /app
+        echo "Current directory: $(pwd)"
 
-      if [ ! -d /app/frontend ]; then
-        echo "Error: Frontend folder is missing in repository!"
-        exit 1
-      fi
+        if [ -d .git ]; then
+          echo "Git repo already exists, pulling latest changes..."
+          git reset --hard
+          git pull
+        else
+          echo "Cloning repository into /app..."
+          rm -rf /app/*
+          timeout 30 git clone --depth 1 "https://github.com/rkuykendall/todo.git" /app || {
+            echo "❌ Git clone failed or timed out"
+            exit 1
+          }
+        fi
 
-      cd /app/frontend
-      npm install
-      npm run build
-      npm install -g serve
-      serve -s dist -l 5173
+        if [ ! -d /app/frontend ]; then
+          echo "❌ Error: Frontend folder is missing in repository!"
+          exit 1
+        fi
+
+        echo "Installing dependencies using npm workspaces..."
+        cd /app
+        npm install
+
+        echo "Building frontend workspace..."
+        npm run build --workspace=frontend
+
+        echo "Installing and starting static file server..."
+        npm install -g serve
+        serve -s dist -l 5173
+      }
+
+      main
       '
