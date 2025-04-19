@@ -1,6 +1,9 @@
 {
   "name": "todo",
   "private": true,
+  "scripts": {
+    "format": "npm run format --workspace=frontend && npm run format --workspace=backend && npm run format --workspace=shared"
+  },
   "workspaces": [
     "frontend",
     "backend",
@@ -8,5 +11,6 @@
   ],
   "devDependencies": {
     "prettier": "^3.5.3"
-  }
+  },
+  "packageManager": "npm@9.0.0"
 }
