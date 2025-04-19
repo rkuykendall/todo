@@ -2,7 +2,9 @@
   "name": "todo",
   "private": true,
   "scripts": {
-    "format": "npm run format --workspace=frontend && npm run format --workspace=backend && npm run format --workspace=shared"
+    "format": "npm run format --workspace=frontend && npm run format --workspace=backend && npm run format --workspace=shared",
+    "lint": "npm run lint --workspace=frontend && npm run lint --workspace=backend && npm run lint --workspace=shared",
+    "lint:fix": "npm run lint:fix --workspace=frontend && npm run lint:fix --workspace=backend && npm run lint:fix --workspace=shared"
   },
   "workspaces": [
     "frontend",

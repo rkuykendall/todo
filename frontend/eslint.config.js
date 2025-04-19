@@ -1,5 +1,4 @@
-// frontend/eslint.config.js
-import base from '../eslint.config.js';
+import base from '@todo/shared/eslint.config.mjs';
 import reactDom from 'eslint-plugin-react-dom';
 import reactx from 'eslint-plugin-react-x';
 
@@ -14,14 +13,12 @@ export default [
       },
     },
     plugins: {
-      ...base[1].plugins,
       'react-dom': reactDom,
       'react-x': reactx,
     },
-    extends: [
-      ...base[1].extends,
-      reactDom.configs.recommended,
-      reactx.configs.recommended,
-    ],
+    rules: {
+      ...reactDom.configs.recommended.rules,
+      ...reactx.configs.recommended.rules,
+    },
   },
 ];

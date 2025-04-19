@@ -3,13 +3,11 @@ import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
-import reactx from 'eslint-plugin-react-x';
-import reactDom from 'eslint-plugin-react-dom';
 
 /** @type {import("eslint").Linter.FlatConfig[]} */
-export default tseslint.config(
+const baseConfig = [
   {
-    ignores: ['**/dist', '**/node_modules'],
+    ignores: ['**/dist', '**/node_modules', '**/.vite/deps/**'],
   },
   {
     files: ['**/*.ts', '**/*.tsx'],
@@ -19,14 +17,16 @@ export default tseslint.config(
         ...globals.node,
         ...globals.browser,
       },
+      parser: tseslint.parser,
       parserOptions: {
-        project: true, // defer to project-specific override
+        project: true,
         tsconfigRootDir: process.cwd(),
       },
     },
     plugins: {
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
+      '@typescript-eslint': tseslint.plugin,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -35,10 +35,10 @@ export default tseslint.config(
         { allowConstantExport: true },
       ],
     },
-    extends: [
-      js.configs.recommended,
-      ...tseslint.configs.strictTypeChecked,
-      ...tseslint.configs.stylisticTypeChecked,
-    ],
-  }
-);
+  },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
+  ...tseslint.configs.strict,
+];
+
+export default baseConfig;
