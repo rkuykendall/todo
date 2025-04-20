@@ -1,5 +1,6 @@
 import { Ticket } from '@todo/shared';
 import { useState, useEffect } from 'react';
+import Button from './Button';
 
 const weekdays = [
   'monday',
@@ -108,9 +109,9 @@ export default function TicketForm({
         </div>
       </div>
 
-      <button type="button" onClick={handleSubmit} disabled={!title.trim()}>
+      <Button type="primary" onClick={handleSubmit} disabled={!title.trim()}>
         {submitLabel}
-      </button>
+      </Button>
     </div>
   );
 }

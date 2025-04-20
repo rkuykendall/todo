@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Ticket } from '@todo/shared';
+import { ConfigProvider } from 'antd';
 import { RootState, AppDispatch } from './store';
 import {
   fetchTickets,
@@ -10,6 +11,7 @@ import {
 } from './ticketSlice';
 import { fetchDraws, patchDraw, createDraws } from './drawSlice';
 import TicketForm from './components/TicketForm';
+import Button from './components/Button';
 
 function App() {
   const dispatch = useDispatch<AppDispatch>();
@@ -39,125 +41,133 @@ function App() {
   };
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
-      <h1>🎯 Today’s Draws</h1>
-      <button type="button" onClick={() => dispatch(createDraws())}>
-        🎲 Draw Tickets for Today
-      </button>
+    <ConfigProvider
+      theme={{
+        token: {
+          colorPrimary: '#1890ff',
+          borderRadius: 12,
+          colorBgContainer: '#fefcf5',
+          fontFamily: 'Comic Neue, sans-serif',
+        },
+      }}
+    >
+      <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
+        <h1>🎯 Today’s Draws</h1>
+        <Button type="primary" onClick={() => dispatch(createDraws())}>
+          🎲 Draw Tickets for Today
+        </Button>
 
-      {loadingDraws ? (
-        <p>Loading draws...</p>
-      ) : draws.length === 0 ? (
-        <p>No draws today!</p>
-      ) : (
-        <ul>
-          {draws.map((draw) => {
-            const ticket = tickets.find((t) => t.id === draw.ticket_id);
-            return (
-              <li key={draw.id}>
-                <span>{ticket?.title || 'Untitled'}</span>{' '}
-                {draw.done || draw.skipped ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      undoDraw(draw.id);
-                    }}
-                  >
-                    ↩️ Undo
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      type="button"
+        {loadingDraws ? (
+          <p>Loading draws...</p>
+        ) : draws.length === 0 ? (
+          <p>No draws today!</p>
+        ) : (
+          <ul>
+            {draws.map((draw) => {
+              const ticket = tickets.find((t) => t.id === draw.ticket_id);
+              return (
+                <li key={draw.id}>
+                  <span>{ticket?.title || 'Untitled'}</span>{' '}
+                  {draw.done || draw.skipped ? (
+                    <Button
                       onClick={() => {
-                        markDone(draw.id);
+                        undoDraw(draw.id);
                       }}
                     >
-                      ✅ Done
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        markSkipped(draw.id);
-                      }}
-                    >
-                      ❌ Skip
-                    </button>
-                  </>
-                )}
+                      ↩️ Undo
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        type="primary"
+                        onClick={() => {
+                          markDone(draw.id);
+                        }}
+                      >
+                        ✅ Done
+                      </Button>
+                      <Button
+                        danger
+                        onClick={() => {
+                          markSkipped(draw.id);
+                        }}
+                      >
+                        ❌ Skip
+                      </Button>
+                    </>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        <hr />
+
+        <TicketForm
+          submitLabel="Add Ticket"
+          onSubmit={(ticket) => dispatch(addTicket(ticket))}
+        />
+
+        <hr />
+
+        <h2>🗂 All Tickets</h2>
+        {loadingTickets ? (
+          <p>Loading tickets...</p>
+        ) : (
+          <ul>
+            {tickets.map((ticket) => (
+              <li key={ticket.id}>
+                <strong>{ticket.title}</strong>{' '}
+                {ticket.done && <span>(Done)</span>}
+                <Button
+                  onClick={() => {
+                    setEditingTicket(ticket);
+                  }}
+                >
+                  ✏️ Edit
+                </Button>
+                <Button
+                  danger
+                  onClick={() => dispatch(deleteTicket(ticket.id))}
+                >
+                  ❌
+                </Button>
               </li>
-            );
-          })}
-        </ul>
-      )}
+            ))}
+          </ul>
+        )}
 
-      <hr />
-
-      <TicketForm
-        submitLabel="Add Ticket"
-        onSubmit={(ticket) => dispatch(addTicket(ticket))}
-      />
-
-      <hr />
-
-      <h2>🗂 All Tickets</h2>
-      {loadingTickets ? (
-        <p>Loading tickets...</p>
-      ) : (
-        <ul>
-          {tickets.map((ticket) => (
-            <li key={ticket.id}>
-              <strong>{ticket.title}</strong>{' '}
-              {ticket.done && <span>(Done)</span>}
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingTicket(ticket);
-                }}
-              >
-                ✏️ Edit
-              </button>
-              <button
-                type="button"
-                onClick={() => dispatch(deleteTicket(ticket.id))}
-              >
-                ❌
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {editingTicket && (
-        <div
-          style={{
-            background: '#333',
-            padding: 16,
-            border: '1px solid #ccc',
-            marginTop: 16,
-          }}
-        >
-          <h3>Edit Ticket</h3>
-          <TicketForm
-            key={editingTicket.id}
-            initialValues={editingTicket}
-            submitLabel="Save Changes"
-            onSubmit={(updates) => {
-              dispatch(updateTicket({ id: editingTicket.id, updates }));
-              setEditingTicket(null);
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => {
-              setEditingTicket(null);
+        {editingTicket && (
+          <div
+            style={{
+              background: '#333',
+              padding: 16,
+              border: '1px solid #ccc',
+              marginTop: 16,
             }}
           >
-            Cancel
-          </button>
-        </div>
-      )}
-    </div>
+            <h3>Edit Ticket</h3>
+            <TicketForm
+              key={editingTicket.id}
+              initialValues={editingTicket}
+              submitLabel="Save Changes"
+              onSubmit={(updates) => {
+                dispatch(updateTicket({ id: editingTicket.id, updates }));
+                setEditingTicket(null);
+              }}
+            />
+            <Button
+              onClick={() => {
+                setEditingTicket(null);
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        )}
+      </div>
+    </ConfigProvider>
   );
 }
 
