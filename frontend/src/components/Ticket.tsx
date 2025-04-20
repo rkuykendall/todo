@@ -1,4 +1,4 @@
-import { Ticket as TicketType } from '@todo/shared';
+import { Ticket as TicketType, dayFields } from '@todo/shared';
 import Button from './Button';
 import Card from './Card';
 import ColorIcon from './ColorIcon';
@@ -15,16 +15,6 @@ interface TicketProps {
   onEdit: (ticket: TicketType) => void;
   onDelete: (id: string) => void;
 }
-
-const DAYS = [
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-  'sunday',
-] as const;
 
 export function Ticket({ ticket, onEdit, onDelete }: TicketProps) {
   return (
@@ -58,7 +48,7 @@ export function Ticket({ ticket, onEdit, onDelete }: TicketProps) {
       <div>
         Draw days:{' '}
         <Space>
-          {DAYS.map((day, idx) => {
+          {dayFields.map((day, idx) => {
             const canDraw = ticket[`can_draw_${day}` as keyof TicketType];
             const icon = idx < 5 ? <CoffeeOutlined /> : <SunOutlined />;
 

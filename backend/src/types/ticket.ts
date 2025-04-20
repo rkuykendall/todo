@@ -1,16 +1,5 @@
 import { z } from 'zod';
-
-const dayFields = [
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-  'sunday',
-] as const;
-
-export type Day = (typeof dayFields)[number];
+import { dayFields } from '@todo/shared';
 
 export const NewTicketSchema = z.object({
   title: z.string().min(1, 'Title is required'),

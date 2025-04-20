@@ -1,3 +1,15 @@
+export const dayFields = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+] as const;
+
+export type Day = (typeof dayFields)[number];
+
 export interface Ticket {
   id: string;
   title: string;

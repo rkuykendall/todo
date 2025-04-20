@@ -1,28 +1,15 @@
 import express from 'express';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
-import db from './db/index';
-import {
-  Day,
-  NewTicketSchema,
-  Ticket,
-  UpdateTicketSchema,
-} from './types/ticket';
-import { PatchTicketDrawSchema, TicketDraw } from './types/ticket_draw';
+import db from './db/index.js';
+import { dayFields } from '@todo/shared/index.js';
+import type { Day, Ticket } from '@todo/shared/index.js';
+import { NewTicketSchema, UpdateTicketSchema } from './types/ticket.js';
+import { PatchTicketDrawSchema, TicketDraw } from './types/ticket_draw.js';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-
-const dayFields = [
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-  'sunday',
-] as const;
 
 // Raw database types with numbers instead of booleans
 type RawDbTicket = {
@@ -45,17 +32,6 @@ interface RawDbDraw {
 }
 
 function normalizeTicket(ticket: RawDbTicket): Ticket {
-  // Create strongly typed initial object
-  const result: Omit<Ticket, `can_draw_${Day}` | `must_draw_${Day}`> = {
-    id: ticket.id,
-    title: ticket.title,
-    created_at: ticket.created_at,
-    done: ticket.done,
-    last_drawn: ticket.last_drawn,
-    deadline: ticket.deadline,
-    done_on_child_done: Boolean(ticket.done_on_child_done),
-  };
-
   // Convert can_draw and must_draw fields into a temporary object
   const dayFieldValues = {} as Record<
     `can_draw_${Day}` | `must_draw_${Day}`,
@@ -69,8 +45,16 @@ function normalizeTicket(ticket: RawDbTicket): Ticket {
     dayFieldValues[mustDrawKey] = Boolean(ticket[mustDrawKey]);
   }
 
-  // Combine both parts into final Ticket object
-  return { ...result, ...dayFieldValues };
+  // Return combined object
+  return {
+    id: ticket.id,
+    title: ticket.title,
+    done_on_child_done: Boolean(ticket.done_on_child_done),
+    done: ticket.done,
+    last_drawn: ticket.last_drawn,
+    deadline: ticket.deadline,
+    ...dayFieldValues,
+  };
 }
 
 function normalizeDraw(draw: RawDbDraw): TicketDraw {

@@ -1,17 +1,7 @@
-import { Ticket } from '@todo/shared';
+import { Ticket, dayFields } from '@todo/shared';
 import { useEffect } from 'react';
 import { Form, Input, Checkbox, Space, Modal, Switch } from 'antd';
 import Button from './Button';
-
-const weekdays = [
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-  'sunday',
-];
 
 interface TicketFormProps {
   initialValues?: Partial<Ticket>;
@@ -21,23 +11,20 @@ interface TicketFormProps {
   onCancel: () => void;
 }
 
+type FormValues = Pick<Ticket, 'title' | 'done_on_child_done'> & {
+  [P in `can_draw_${(typeof dayFields)[number]}`]: boolean;
+};
+
 const emptyValues: FormValues = {
   title: '',
   done_on_child_done: true,
-  can_draw_monday: true,
-  can_draw_tuesday: true,
-  can_draw_wednesday: true,
-  can_draw_thursday: true,
-  can_draw_friday: true,
-  can_draw_saturday: false,
-  can_draw_sunday: false,
-};
-
-interface FormValues {
-  title: string;
-  done_on_child_done: boolean;
-  [key: `can_draw_${(typeof weekdays)[number]}`]: boolean;
-}
+  ...Object.fromEntries(
+    dayFields.map((day) => [
+      `can_draw_${day}`,
+      dayFields.slice(0, 5).includes(day),
+    ])
+  ),
+} as FormValues;
 
 const toLabel = (day: string): string => {
   const firstLetter = day.charAt(0).toUpperCase();
@@ -60,7 +47,7 @@ function TicketForm({
         done_on_child_done:
           initialValues.done_on_child_done ?? emptyValues.done_on_child_done,
         ...Object.fromEntries(
-          weekdays.map((day) => [
+          dayFields.map((day) => [
             `can_draw_${day}`,
             Boolean(initialValues[`can_draw_${day}` as keyof Ticket]),
           ])
@@ -112,7 +99,7 @@ function TicketForm({
 
         <Form.Item label="Can draw on">
           <Space wrap>
-            {weekdays.map((day) => (
+            {dayFields.map((day) => (
               <Form.Item
                 key={day}
                 name={`can_draw_${day}`}
