@@ -2,7 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
 import db from './db/index';
-import { NewTicketSchema, Ticket, UpdateTicketSchema } from './types/ticket';
+import {
+  Day,
+  NewTicketSchema,
+  Ticket,
+  UpdateTicketSchema,
+} from './types/ticket';
 import { PatchTicketDrawSchema, TicketDraw } from './types/ticket_draw';
 
 const app = express();
@@ -17,67 +22,105 @@ const dayFields = [
   'friday',
   'saturday',
   'sunday',
-];
+] as const;
 
-function normalizeTicket(ticket: any) {
-  const boolFields = [
-    'done_on_child_done',
-    'can_draw_monday',
-    'must_draw_monday',
-    'can_draw_tuesday',
-    'must_draw_tuesday',
-    'can_draw_wednesday',
-    'must_draw_wednesday',
-    'can_draw_thursday',
-    'must_draw_thursday',
-    'can_draw_friday',
-    'must_draw_friday',
-    'can_draw_saturday',
-    'must_draw_saturday',
-    'can_draw_sunday',
-    'must_draw_sunday',
-  ];
+// Raw database types with numbers instead of booleans
+type RawDbTicket = {
+  id: string;
+  title: string;
+  created_at: string;
+  done_on_child_done: number;
+  done: string | null;
+  last_drawn: string | null;
+  deadline: string | null;
+} & Record<`can_draw_${Day}` | `must_draw_${Day}`, number>;
 
-  const normalized = { ...ticket };
-  for (const key of boolFields) {
-    if (key in normalized) {
-      normalized[key] = Boolean(normalized[key]);
-    }
-  }
-
-  return normalized;
+interface RawDbDraw {
+  id: string;
+  created_at: string;
+  ticket_id: string;
+  done: number;
+  made_progress: number;
+  skipped: number;
 }
 
-function denormalizeTicket(input: Record<string, any>): Record<string, any> {
-  const boolFields = [
-    'done_on_child_done',
-    'can_draw_monday',
-    'must_draw_monday',
-    'can_draw_tuesday',
-    'must_draw_tuesday',
-    'can_draw_wednesday',
-    'must_draw_wednesday',
-    'can_draw_thursday',
-    'must_draw_thursday',
-    'can_draw_friday',
-    'must_draw_friday',
-    'can_draw_saturday',
-    'must_draw_saturday',
-    'can_draw_sunday',
-    'must_draw_sunday',
-  ];
+function normalizeTicket(ticket: RawDbTicket): Ticket {
+  // Create strongly typed initial object
+  const result: Omit<Ticket, `can_draw_${Day}` | `must_draw_${Day}`> = {
+    id: ticket.id,
+    title: ticket.title,
+    created_at: ticket.created_at,
+    done: ticket.done,
+    last_drawn: ticket.last_drawn,
+    deadline: ticket.deadline,
+    done_on_child_done: Boolean(ticket.done_on_child_done),
+  };
 
-  const denormalized = { ...input };
-  for (const key of boolFields) {
-    if (key in denormalized) {
-      denormalized[key] = denormalized[key] ? 1 : 0;
+  // Convert can_draw and must_draw fields into a temporary object
+  const dayFieldValues = {} as Record<
+    `can_draw_${Day}` | `must_draw_${Day}`,
+    boolean
+  >;
+
+  for (const day of dayFields) {
+    const canDrawKey = `can_draw_${day}` as const;
+    const mustDrawKey = `must_draw_${day}` as const;
+    dayFieldValues[canDrawKey] = Boolean(ticket[canDrawKey]);
+    dayFieldValues[mustDrawKey] = Boolean(ticket[mustDrawKey]);
+  }
+
+  // Combine both parts into final Ticket object
+  return { ...result, ...dayFieldValues };
+}
+
+function normalizeDraw(draw: RawDbDraw): TicketDraw {
+  return {
+    ...draw,
+    done: Boolean(draw.done),
+    made_progress: Boolean(draw.made_progress),
+    skipped: Boolean(draw.skipped),
+  };
+}
+
+function denormalizeTicket(input: Partial<Ticket>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+
+  // Copy non-boolean fields directly
+  const nonBoolFields = [
+    'id',
+    'title',
+    'created_at',
+    'done',
+    'last_drawn',
+    'deadline',
+  ];
+  for (const field of nonBoolFields) {
+    if (field in input) {
+      result[field] = input[field as keyof typeof input];
     }
   }
-  return denormalized;
+
+  // Convert boolean fields to numbers
+  if ('done_on_child_done' in input) {
+    result.done_on_child_done = Number(input.done_on_child_done);
+  }
+
+  for (const day of dayFields) {
+    const canDrawKey = `can_draw_${day}` as keyof Ticket;
+    const mustDrawKey = `must_draw_${day}` as keyof Ticket;
+    if (canDrawKey in input) {
+      result[canDrawKey] = Number(input[canDrawKey]);
+    }
+    if (mustDrawKey in input) {
+      result[mustDrawKey] = Number(input[mustDrawKey]);
+    }
+  }
+
+  return result;
 }
 
 app.get('/tickets', (_req, res) => {
-  const raw = db.prepare('SELECT * FROM ticket').all();
+  const raw = db.prepare('SELECT * FROM ticket').all() as RawDbTicket[];
   const normalized = raw.map(normalizeTicket);
   res.json(normalized);
 });
@@ -85,7 +128,7 @@ app.get('/tickets', (_req, res) => {
 app.get('/tickets/:id', (req, res) => {
   const ticket = db
     .prepare('SELECT * FROM ticket WHERE id = ?')
-    .get(req.params.id);
+    .get(req.params.id) as RawDbTicket | undefined;
   if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
   res.json(normalizeTicket(ticket));
 });
@@ -132,9 +175,9 @@ app.post('/tickets', (req, res) => {
 
 app.put('/tickets/:id', (req, res) => {
   const { id } = req.params;
-  const existing: Ticket | undefined = db
-    .prepare<unknown[], Ticket>('SELECT * FROM ticket WHERE id = ?')
-    .get(id);
+  const existing = db.prepare('SELECT * FROM ticket WHERE id = ?').get(id) as
+    | RawDbTicket
+    | undefined;
   if (!existing) return res.status(404).json({ error: 'Ticket not found' });
 
   const result = UpdateTicketSchema.safeParse(req.body);
@@ -153,7 +196,9 @@ app.put('/tickets/:id', (req, res) => {
   const updateStmt = db.prepare(`UPDATE ticket SET ${setClause} WHERE id = ?`);
   updateStmt.run(...updateKeys.map((k) => updates[k]), id);
 
-  const updated = db.prepare('SELECT * FROM ticket WHERE id = ?').get(id);
+  const updated = db
+    .prepare('SELECT * FROM ticket WHERE id = ?')
+    .get(id) as RawDbTicket;
   res.json(normalizeTicket(updated));
 });
 
@@ -179,73 +224,49 @@ function getTodayDayString(): string {
 
 // Utility: Get ISO date string for YYYY-MM-DD (used for filtering)
 function getTodayDate(): string {
-  return new Date().toISOString().split('T')[0]!;
+  return new Date().toISOString().split('T')[0];
 }
 
 app.get('/ticket_draw', (_req, res) => {
   const today = getTodayDate();
 
   const draws = db
-    .prepare(
-      `
-    SELECT * FROM ticket_draw
-    WHERE DATE(created_at) = ?
-  `
-    )
-    .all(today);
+    .prepare('SELECT * FROM ticket_draw WHERE DATE(created_at) = ?')
+    .all(today) as RawDbDraw[];
 
-  res.json(draws.map(normalizeTicket));
+  res.json(draws.map(normalizeDraw));
 });
 
 app.post('/ticket_draw', (_req, res) => {
   const today = getTodayDate();
-  const todayDay = getTodayDayString(); // e.g. "wednesday"
+  const todayDay = getTodayDayString();
 
-  // Get tickets eligible for drawing today
   const eligibleTickets = db
-    .prepare<unknown[], Ticket>(
-      `
-    SELECT * FROM ticket
-    WHERE can_draw_${todayDay} = 1
-  `
-    )
-    .all();
+    .prepare(`SELECT * FROM ticket WHERE can_draw_${todayDay} = 1`)
+    .all() as RawDbTicket[];
 
   const existingDraws = db
-    .prepare(
-      `
-    SELECT ticket_id FROM ticket_draw
-    WHERE DATE(created_at) = ?
-  `
-    )
-    .all(today)
-    .map((d: any) => d.ticket_id);
+    .prepare('SELECT ticket_id FROM ticket_draw WHERE DATE(created_at) = ?')
+    .all(today) as Array<{ ticket_id: string }>;
+
+  const existingTicketIds = new Set(existingDraws.map((d) => d.ticket_id));
 
   const insert = db.prepare(`
     INSERT INTO ticket_draw (id, created_at, ticket_id, done, made_progress, skipped)
     VALUES (?, CURRENT_TIMESTAMP, ?, 0, 0, 0)
   `);
 
-  const drawsCreated = [];
-
   for (const ticket of eligibleTickets) {
-    if (existingDraws.includes(ticket.id)) continue;
-
+    if (existingTicketIds.has(ticket.id)) continue;
     const id = uuidv4();
     insert.run(id, ticket.id);
-    drawsCreated.push({ id, ticket_id: ticket.id });
   }
 
   const todaysDraws = db
-    .prepare(
-      `
-    SELECT * FROM ticket_draw
-    WHERE DATE(created_at) = ?
-  `
-    )
-    .all(today);
+    .prepare('SELECT * FROM ticket_draw WHERE DATE(created_at) = ?')
+    .all(today) as RawDbDraw[];
 
-  res.status(201).json(todaysDraws.map(normalizeTicket));
+  res.status(201).json(todaysDraws.map(normalizeDraw));
 });
 
 app.patch('/ticket_draw/:id', (req, res) => {
@@ -262,8 +283,8 @@ app.patch('/ticket_draw/:id', (req, res) => {
   }
 
   const existing = db
-    .prepare<unknown[], TicketDraw>('SELECT * FROM ticket_draw WHERE id = ?')
-    .get(id);
+    .prepare('SELECT * FROM ticket_draw WHERE id = ?')
+    .get(id) as RawDbDraw | undefined;
   if (!existing) {
     return res.status(404).json({ error: 'ticket_draw not found.' });
   }
@@ -281,12 +302,12 @@ app.patch('/ticket_draw/:id', (req, res) => {
 
   if (updates.done === true) {
     db.prepare(
-      `
-      UPDATE ticket SET last_drawn = CURRENT_TIMESTAMP WHERE id = ?
-    `
+      'UPDATE ticket SET last_drawn = CURRENT_TIMESTAMP WHERE id = ?'
     ).run(existing.ticket_id);
   }
 
-  const updated = db.prepare('SELECT * FROM ticket_draw WHERE id = ?').get(id);
-  res.json(normalizeTicket(updated));
+  const updated = db
+    .prepare('SELECT * FROM ticket_draw WHERE id = ?')
+    .get(id) as RawDbDraw;
+  res.json(normalizeDraw(updated));
 });

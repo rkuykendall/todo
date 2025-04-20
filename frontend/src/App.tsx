@@ -41,7 +41,7 @@ function App() {
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
       <h1>🎯 Today’s Draws</h1>
-      <button onClick={() => dispatch(createDraws())}>
+      <button type="button" onClick={() => dispatch(createDraws())}>
         🎲 Draw Tickets for Today
       </button>
 
@@ -58,6 +58,7 @@ function App() {
                 <span>{ticket?.title || 'Untitled'}</span>{' '}
                 {draw.done || draw.skipped ? (
                   <button
+                    type="button"
                     onClick={() => {
                       undoDraw(draw.id);
                     }}
@@ -67,6 +68,7 @@ function App() {
                 ) : (
                   <>
                     <button
+                      type="button"
                       onClick={() => {
                         markDone(draw.id);
                       }}
@@ -74,6 +76,7 @@ function App() {
                       ✅ Done
                     </button>
                     <button
+                      type="button"
                       onClick={() => {
                         markSkipped(draw.id);
                       }}
@@ -107,13 +110,17 @@ function App() {
               <strong>{ticket.title}</strong>{' '}
               {ticket.done && <span>(Done)</span>}
               <button
+                type="button"
                 onClick={() => {
                   setEditingTicket(ticket);
                 }}
               >
                 ✏️ Edit
               </button>
-              <button onClick={() => dispatch(deleteTicket(ticket.id))}>
+              <button
+                type="button"
+                onClick={() => dispatch(deleteTicket(ticket.id))}
+              >
                 ❌
               </button>
             </li>
@@ -141,6 +148,7 @@ function App() {
             }}
           />
           <button
+            type="button"
             onClick={() => {
               setEditingTicket(null);
             }}

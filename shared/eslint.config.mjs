@@ -4,7 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
-/** @type {import("eslint").Linter.FlatConfig[]} */
+/** @type {import("eslint").Linter.Config[]} */
 const baseConfig = [
   {
     ignores: ['**/dist', '**/node_modules', '**/.vite/deps/**'],
@@ -20,6 +20,8 @@ const baseConfig = [
       parser: tseslint.parser,
       parserOptions: {
         project: true,
+        // Not sure why globals.node is not working here
+        // eslint-disable-next-line no-undef
         tsconfigRootDir: process.cwd(),
       },
     },

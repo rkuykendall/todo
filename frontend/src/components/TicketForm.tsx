@@ -17,8 +17,10 @@ interface TicketFormProps {
   submitLabel?: string;
 }
 
+const empty = {};
+
 export default function TicketForm({
-  initialValues = {},
+  initialValues = empty,
   onSubmit,
   submitLabel = 'Save',
 }: TicketFormProps) {
@@ -47,7 +49,7 @@ export default function TicketForm({
         ])
       ) as Record<string, boolean>
     );
-  }, [initialValues.id]);
+  }, [initialValues]);
 
   const handleSubmit = () => {
     if (!title.trim()) return;
@@ -106,7 +108,7 @@ export default function TicketForm({
         </div>
       </div>
 
-      <button onClick={handleSubmit} disabled={!title.trim()}>
+      <button type="button" onClick={handleSubmit} disabled={!title.trim()}>
         {submitLabel}
       </button>
     </div>

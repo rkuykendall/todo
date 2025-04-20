@@ -10,7 +10,7 @@ const dayFields = [
   'sunday',
 ] as const;
 
-type Day = (typeof dayFields)[number];
+export type Day = (typeof dayFields)[number];
 
 export const NewTicketSchema = z.object({
   title: z.string().min(1, 'Title is required'),
