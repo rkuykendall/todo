@@ -1,13 +1,30 @@
 import { Ticket as TicketType } from '@todo/shared';
 import Button from './Button';
 import Card from './Card';
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import ColorIcon from './ColorIcon';
+import {
+  EditOutlined,
+  DeleteOutlined,
+  SunOutlined,
+  CoffeeOutlined,
+} from '@ant-design/icons';
+import { Space } from 'antd';
 
 interface TicketProps {
   ticket: TicketType;
   onEdit: (ticket: TicketType) => void;
   onDelete: (id: string) => void;
 }
+
+const DAYS = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+] as const;
 
 export function Ticket({ ticket, onEdit, onDelete }: TicketProps) {
   return (
@@ -40,11 +57,18 @@ export function Ticket({ ticket, onEdit, onDelete }: TicketProps) {
 
       <div>
         Draw days:{' '}
-        {Object.entries(ticket)
-          .filter(([key, value]) => key.startsWith('can_draw_') && value)
-          .map(([key]) => key.replace('can_draw_', ''))
-          .map((day) => day.charAt(0).toUpperCase() + day.slice(1))
-          .join(', ')}
+        <Space>
+          {DAYS.map((day, idx) => {
+            const canDraw = ticket[`can_draw_${day}` as keyof TicketType];
+            const icon = idx < 5 ? <CoffeeOutlined /> : <SunOutlined />;
+
+            return canDraw ? (
+              <ColorIcon key={day} icon={icon} />
+            ) : (
+              <ColorIcon key={day} icon={icon} type="disabled" />
+            );
+          })}
+        </Space>
       </div>
     </Card>
   );

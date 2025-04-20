@@ -1,6 +1,6 @@
 import { Ticket } from '@todo/shared';
 import { useEffect } from 'react';
-import { Form, Input, Checkbox, Space, Modal } from 'antd';
+import { Form, Input, Checkbox, Space, Modal, Switch } from 'antd';
 import Button from './Button';
 
 const weekdays = [
@@ -13,8 +13,6 @@ const weekdays = [
   'sunday',
 ];
 
-const emptyValues: Partial<Ticket> = {};
-
 interface TicketFormProps {
   initialValues?: Partial<Ticket>;
   onSubmit: (values: Partial<Ticket>) => void;
@@ -22,6 +20,18 @@ interface TicketFormProps {
   open: boolean;
   onCancel: () => void;
 }
+
+const emptyValues: FormValues = {
+  title: '',
+  done_on_child_done: true,
+  can_draw_monday: true,
+  can_draw_tuesday: true,
+  can_draw_wednesday: true,
+  can_draw_thursday: true,
+  can_draw_friday: true,
+  can_draw_saturday: false,
+  can_draw_sunday: false,
+};
 
 interface FormValues {
   title: string;
@@ -46,8 +56,9 @@ function TicketForm({
   useEffect(() => {
     if (open) {
       form.setFieldsValue({
-        title: initialValues.title ?? '',
-        done_on_child_done: initialValues.done_on_child_done ?? false,
+        title: initialValues.title ?? emptyValues.title,
+        done_on_child_done:
+          initialValues.done_on_child_done ?? emptyValues.done_on_child_done,
         ...Object.fromEntries(
           weekdays.map((day) => [
             `can_draw_${day}`,
@@ -79,13 +90,7 @@ function TicketForm({
     >
       <Form<FormValues>
         form={form}
-        initialValues={{
-          title: '',
-          done_on_child_done: false,
-          ...Object.fromEntries(
-            weekdays.map((day) => [`can_draw_${day}`, false])
-          ),
-        }}
+        initialValues={emptyValues}
         layout="vertical"
         onFinish={handleSubmit}
       >
@@ -97,11 +102,15 @@ function TicketForm({
           <Input placeholder="Ticket title" />
         </Form.Item>
 
-        <Form.Item name="done_on_child_done" valuePropName="checked">
-          <Checkbox>Done when all draws are done</Checkbox>
+        <Form.Item
+          name="done_on_child_done"
+          valuePropName="checked"
+          label="Done when child is done"
+        >
+          <Switch title="Done when all draws are done" />
         </Form.Item>
 
-        <Form.Item label="Can Draw On:">
+        <Form.Item label="Can draw on">
           <Space wrap>
             {weekdays.map((day) => (
               <Form.Item
