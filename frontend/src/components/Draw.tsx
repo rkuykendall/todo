@@ -2,7 +2,7 @@ import { Ticket } from '@todo/shared';
 import { TicketDraw } from '../drawSlice';
 import Button from './Button';
 import Card from './Card';
-import { Space } from 'antd';
+import ColorIcon from './ColorIcon';
 import {
   UndoOutlined,
   CheckOutlined,
@@ -27,52 +27,45 @@ export function Draw({
 }: DrawProps) {
   return (
     <Card
-      style={{ marginBottom: 16 }}
       title={ticket?.title || 'Untitled'}
-      actions={[
-        draw.done || draw.skipped ? (
-          <Button
-            key="undo"
-            onClick={() => onUndo(draw.id)}
-            icon={<UndoOutlined />}
-          >
-            Undo
-          </Button>
-        ) : (
-          <Space>
-            <Button
-              key="done"
-              type="primary"
-              onClick={() => onMarkDone(draw.id)}
-              icon={<CheckOutlined />}
-            >
-              Done
-            </Button>
-            <Button
-              key="skip"
-              onClick={() => onMarkSkipped(draw.id)}
-              icon={<CloseOutlined />}
-            >
-              Skip
-            </Button>
-          </Space>
-        ),
-      ]}
+      actions={
+        draw.done || draw.skipped
+          ? [
+              <Button
+                key="undo"
+                onClick={() => onUndo(draw.id)}
+                icon={<UndoOutlined />}
+              >
+                Undo
+              </Button>,
+            ]
+          : [
+              <Button
+                key="done"
+                type="link"
+                onClick={() => onMarkDone(draw.id)}
+                icon={<CheckOutlined />}
+              >
+                Done
+              </Button>,
+              <Button
+                key="skip"
+                onClick={() => onMarkSkipped(draw.id)}
+                type="text"
+              >
+                Skip
+              </Button>,
+            ]
+      }
     >
       <p>
         Status:{' '}
         {draw.done ? (
-          <>
-            <CheckOutlined style={{ color: '#52c41a' }} /> Done
-          </>
+          <ColorIcon icon={<CheckOutlined />} type="success" label="Done" />
         ) : draw.skipped ? (
-          <>
-            <CloseOutlined style={{ color: '#ff4d4f' }} /> Skipped
-          </>
+          <ColorIcon icon={<CloseOutlined />} type="error" label="Skipped" />
         ) : (
-          <>
-            <HourglassOutlined style={{ color: '#1677ff' }} /> Pending
-          </>
+          <ColorIcon icon={<HourglassOutlined />} type="info" label="Pending" />
         )}
       </p>
     </Card>

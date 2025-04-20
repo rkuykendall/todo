@@ -20,17 +20,15 @@ export function Ticket({ ticket, onEdit, onDelete }: TicketProps) {
           key="edit"
           onClick={() => onEdit(ticket)}
           icon={<EditOutlined />}
-        >
-          Edit
-        </Button>,
+          type="text"
+        ></Button>,
         <Button
           key="delete"
           danger
           onClick={() => onDelete(ticket.id)}
           icon={<DeleteOutlined />}
-        >
-          Delete
-        </Button>,
+          type="text"
+        ></Button>,
       ]}
     >
       <div>
