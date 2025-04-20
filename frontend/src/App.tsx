@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Ticket as TicketType } from '@todo/shared';
 import { ConfigProvider, Typography, Space } from 'antd';
-import { SyncOutlined } from '@ant-design/icons';
+import { SyncOutlined, PlusOutlined } from '@ant-design/icons';
 import { RootState, AppDispatch } from './store';
 import {
   fetchTickets,
@@ -13,7 +13,6 @@ import {
 import { fetchDraws, patchDraw, createDraws } from './drawSlice';
 import TicketForm from './components/TicketForm';
 import Button from './components/Button';
-import Card from './components/Card';
 import Draw from './components/Draw';
 import Ticket from './components/Ticket';
 
@@ -26,6 +25,7 @@ function App() {
     (state: RootState) => state.draws
   );
   const [editingTicket, setEditingTicket] = useState<TicketType | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   useEffect(() => {
     dispatch(fetchTickets());
@@ -55,13 +55,21 @@ function App() {
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
         <Space direction="vertical" size="large">
           <Typography.Title level={1}>Today's Draws</Typography.Title>
-          <Button
-            type="primary"
-            onClick={() => dispatch(createDraws())}
-            icon={<SyncOutlined />}
-          >
-            Draw Tickets for Today
-          </Button>
+          <Space>
+            <Button
+              type="primary"
+              onClick={() => dispatch(createDraws())}
+              icon={<SyncOutlined />}
+            >
+              Draw Tickets for Today
+            </Button>
+            <Button
+              onClick={() => setIsAddModalOpen(true)}
+              icon={<PlusOutlined />}
+            >
+              Add Ticket
+            </Button>
+          </Space>
 
           {loadingDraws ? (
             <p>Loading draws...</p>
@@ -82,13 +90,6 @@ function App() {
             </Space>
           )}
 
-          <Card>
-            <TicketForm
-              submitLabel="Add Ticket"
-              onSubmit={(ticket) => dispatch(addTicket(ticket))}
-            />
-          </Card>
-
           <Typography.Title level={2}>All Tickets</Typography.Title>
           {loadingTickets ? (
             <p>Loading tickets...</p>
@@ -105,22 +106,28 @@ function App() {
             </Space>
           )}
 
-          {editingTicket && (
-            <Card title="Edit Ticket">
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <TicketForm
-                  key={editingTicket.id}
-                  initialValues={editingTicket}
-                  submitLabel="Save Changes"
-                  onSubmit={(updates) => {
-                    dispatch(updateTicket({ id: editingTicket.id, updates }));
-                    setEditingTicket(null);
-                  }}
-                />
-                <Button onClick={() => setEditingTicket(null)}>Cancel</Button>
-              </Space>
-            </Card>
-          )}
+          <TicketForm
+            title="Add New Ticket"
+            open={isAddModalOpen}
+            onCancel={() => setIsAddModalOpen(false)}
+            onSubmit={(ticket) => {
+              dispatch(addTicket(ticket));
+              setIsAddModalOpen(false);
+            }}
+          />
+
+          <TicketForm
+            title="Edit Ticket"
+            open={!!editingTicket}
+            onCancel={() => setEditingTicket(null)}
+            initialValues={editingTicket || undefined}
+            onSubmit={(updates) => {
+              if (editingTicket) {
+                dispatch(updateTicket({ id: editingTicket.id, updates }));
+                setEditingTicket(null);
+              }
+            }}
+          />
         </Space>
       </div>
     </ConfigProvider>

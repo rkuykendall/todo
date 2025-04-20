@@ -50,7 +50,6 @@ export function Draw({
             </Button>
             <Button
               key="skip"
-              danger
               onClick={() => onMarkSkipped(draw.id)}
               icon={<CloseOutlined />}
             >
