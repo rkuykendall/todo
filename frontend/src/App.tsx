@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Ticket as TicketType } from '@todo/shared';
 import { ConfigProvider } from 'antd';
+import { AimOutlined, SyncOutlined } from '@ant-design/icons';
 import { RootState, AppDispatch } from './store';
 import {
   fetchTickets,
@@ -52,9 +53,15 @@ function App() {
       }}
     >
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
-        <h1>🎯 Today's Draws</h1>
-        <Button type="primary" onClick={() => dispatch(createDraws())}>
-          🎲 Draw Tickets for Today
+        <h1>
+          <AimOutlined /> Today's Draws
+        </h1>
+        <Button
+          type="primary"
+          onClick={() => dispatch(createDraws())}
+          icon={<SyncOutlined />}
+        >
+          Draw Tickets for Today
         </Button>
 
         {loadingDraws ? (
@@ -83,7 +90,9 @@ function App() {
           />
         </Card>
 
-        <h2>🗂 All Tickets</h2>
+        <h2>
+          <AimOutlined /> All Tickets
+        </h2>
         {loadingTickets ? (
           <p>Loading tickets...</p>
         ) : (

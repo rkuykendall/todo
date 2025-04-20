@@ -1,6 +1,7 @@
 import { Ticket as TicketType } from '@todo/shared';
 import Button from './Button';
 import Card from './Card';
+import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 
 interface TicketProps {
   ticket: TicketType;
@@ -15,11 +16,20 @@ export function Ticket({ ticket, onEdit, onDelete }: TicketProps) {
       title={ticket.title}
       extra={ticket.done && <span>(Done)</span>}
       actions={[
-        <Button key="edit" onClick={() => onEdit(ticket)}>
-          ✏️ Edit
+        <Button
+          key="edit"
+          onClick={() => onEdit(ticket)}
+          icon={<EditOutlined />}
+        >
+          Edit
         </Button>,
-        <Button key="delete" danger onClick={() => onDelete(ticket.id)}>
-          ❌ Delete
+        <Button
+          key="delete"
+          danger
+          onClick={() => onDelete(ticket.id)}
+          icon={<DeleteOutlined />}
+        >
+          Delete
         </Button>,
       ]}
     >

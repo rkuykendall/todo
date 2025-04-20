@@ -2,6 +2,13 @@ import { Ticket } from '@todo/shared';
 import { TicketDraw } from '../drawSlice';
 import Button from './Button';
 import Card from './Card';
+import { Space } from 'antd';
+import {
+  UndoOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  HourglassOutlined,
+} from '@ant-design/icons';
 
 interface DrawProps {
   draw: TicketDraw;
@@ -24,28 +31,50 @@ export function Draw({
       title={ticket?.title || 'Untitled'}
       actions={[
         draw.done || draw.skipped ? (
-          <Button key="undo" onClick={() => onUndo(draw.id)}>
-            ↩️ Undo
+          <Button
+            key="undo"
+            onClick={() => onUndo(draw.id)}
+            icon={<UndoOutlined />}
+          >
+            Undo
           </Button>
         ) : (
-          <>
+          <Space>
             <Button
               key="done"
               type="primary"
               onClick={() => onMarkDone(draw.id)}
+              icon={<CheckOutlined />}
             >
-              ✅ Done
+              Done
             </Button>
-            <Button key="skip" danger onClick={() => onMarkSkipped(draw.id)}>
-              ❌ Skip
+            <Button
+              key="skip"
+              danger
+              onClick={() => onMarkSkipped(draw.id)}
+              icon={<CloseOutlined />}
+            >
+              Skip
             </Button>
-          </>
+          </Space>
         ),
       ]}
     >
       <p>
         Status:{' '}
-        {draw.done ? '✅ Done' : draw.skipped ? '❌ Skipped' : '⏳ Pending'}
+        {draw.done ? (
+          <>
+            <CheckOutlined style={{ color: '#52c41a' }} /> Done
+          </>
+        ) : draw.skipped ? (
+          <>
+            <CloseOutlined style={{ color: '#ff4d4f' }} /> Skipped
+          </>
+        ) : (
+          <>
+            <HourglassOutlined style={{ color: '#1677ff' }} /> Pending
+          </>
+        )}
       </p>
     </Card>
   );
