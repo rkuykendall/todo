@@ -12,16 +12,18 @@ interface TicketFormProps {
 }
 
 type FormValues = Pick<Ticket, 'title' | 'done_on_child_done'> & {
-  [P in `can_draw_${(typeof dayFields)[number]}`]: boolean;
+  [P in
+    | `can_draw_${(typeof dayFields)[number]}`
+    | `must_draw_${(typeof dayFields)[number]}`]: boolean;
 };
 
 const emptyValues: FormValues = {
   title: '',
   done_on_child_done: true,
   ...Object.fromEntries(
-    dayFields.map((day) => [
-      `can_draw_${day}`,
-      dayFields.slice(0, 5).includes(day),
+    dayFields.flatMap((day) => [
+      [`can_draw_${day}`, dayFields.slice(0, 5).includes(day)],
+      [`must_draw_${day}`, false],
     ])
   ),
 } as FormValues;
@@ -47,9 +49,15 @@ function TicketForm({
         done_on_child_done:
           initialValues.done_on_child_done ?? emptyValues.done_on_child_done,
         ...Object.fromEntries(
-          dayFields.map((day) => [
-            `can_draw_${day}`,
-            Boolean(initialValues[`can_draw_${day}` as keyof Ticket]),
+          dayFields.flatMap((day) => [
+            [
+              `can_draw_${day}`,
+              Boolean(initialValues[`can_draw_${day}` as keyof Ticket]),
+            ],
+            [
+              `must_draw_${day}`,
+              Boolean(initialValues[`must_draw_${day}` as keyof Ticket]),
+            ],
           ])
         ),
       });
@@ -103,6 +111,21 @@ function TicketForm({
               <Form.Item
                 key={day}
                 name={`can_draw_${day}`}
+                noStyle
+                valuePropName="checked"
+              >
+                <Checkbox>{toLabel(day)}</Checkbox>
+              </Form.Item>
+            ))}
+          </Space>
+        </Form.Item>
+
+        <Form.Item label="Must draw on">
+          <Space wrap>
+            {dayFields.map((day) => (
+              <Form.Item
+                key={day}
+                name={`must_draw_${day}`}
                 noStyle
                 valuePropName="checked"
               >

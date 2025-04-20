@@ -1,14 +1,8 @@
-import { Ticket as TicketType, dayFields } from '@todo/shared';
+import { Ticket as TicketType } from '@todo/shared';
 import Button from './Button';
 import Card from './Card';
-import ColorIcon from './ColorIcon';
-import {
-  EditOutlined,
-  DeleteOutlined,
-  SunOutlined,
-  CoffeeOutlined,
-} from '@ant-design/icons';
-import { Space } from 'antd';
+import DayIndicator from './DayIndicator';
+import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 
 interface TicketProps {
   ticket: TicketType;
@@ -46,19 +40,7 @@ export function Ticket({ ticket, onEdit, onDelete }: TicketProps) {
       </div>
 
       <div>
-        Draw days:{' '}
-        <Space>
-          {dayFields.map((day, idx) => {
-            const canDraw = ticket[`can_draw_${day}` as keyof TicketType];
-            const icon = idx < 5 ? <CoffeeOutlined /> : <SunOutlined />;
-
-            return canDraw ? (
-              <ColorIcon key={day} icon={icon} />
-            ) : (
-              <ColorIcon key={day} icon={icon} type="disabled" />
-            );
-          })}
-        </Space>
+        Draw days: <DayIndicator canDraw={ticket} mustDraw={ticket} />
       </div>
     </Card>
   );
