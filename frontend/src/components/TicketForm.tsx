@@ -1,5 +1,6 @@
 import { Ticket } from '@todo/shared';
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import { Form, Input, Checkbox, Space } from 'antd';
 import Button from './Button';
 
 const weekdays = [
@@ -18,6 +19,12 @@ interface TicketFormProps {
   submitLabel?: string;
 }
 
+interface FormValues {
+  title: string;
+  done_on_child_done: boolean;
+  [key: `can_draw_${(typeof weekdays)[number]}`]: boolean;
+}
+
 const empty = {};
 
 export default function TicketForm({
@@ -25,93 +32,70 @@ export default function TicketForm({
   onSubmit,
   submitLabel = 'Save',
 }: TicketFormProps) {
-  const [title, setTitle] = useState(initialValues.title ?? '');
-  const [doneOnChildDone, setDoneOnChildDone] = useState(
-    initialValues.done_on_child_done ?? false
-  );
-
-  const [dayChecks, setDayChecks] = useState<Record<string, boolean>>(
-    Object.fromEntries(
-      weekdays.map((day) => [
-        `can_draw_${day}`,
-        Boolean(initialValues[`can_draw_${day}` as keyof Ticket]),
-      ])
-    ) as Record<string, boolean>
-  );
+  const [form] = Form.useForm<FormValues>();
 
   useEffect(() => {
-    setTitle(initialValues.title ?? '');
-    setDoneOnChildDone(initialValues.done_on_child_done ?? false);
-    setDayChecks(
-      Object.fromEntries(
+    form.setFieldsValue({
+      title: initialValues.title ?? '',
+      done_on_child_done: initialValues.done_on_child_done ?? false,
+      ...Object.fromEntries(
         weekdays.map((day) => [
           `can_draw_${day}`,
           Boolean(initialValues[`can_draw_${day}` as keyof Ticket]),
         ])
-      ) as Record<string, boolean>
-    );
-  }, [initialValues]);
-
-  const handleSubmit = () => {
-    if (!title.trim()) return;
-
-    onSubmit({
-      title,
-      done_on_child_done: doneOnChildDone,
-      ...dayChecks,
+      ),
     });
+  }, [form, initialValues]);
+
+  const handleSubmit = (values: FormValues) => {
+    onSubmit(values);
   };
 
   return (
-    <div>
-      <label>
-        Title:{' '}
-        <input
-          value={title}
-          onChange={(e) => {
-            setTitle(e.target.value);
-          }}
-          placeholder="Ticket title"
-        />
-      </label>
+    <Form<FormValues>
+      form={form}
+      onFinish={handleSubmit}
+      layout="vertical"
+      initialValues={{
+        title: '',
+        done_on_child_done: false,
+        ...Object.fromEntries(
+          weekdays.map((day) => [`can_draw_${day}`, false])
+        ),
+      }}
+    >
+      <Form.Item
+        label="Title"
+        name="title"
+        rules={[{ required: true, message: 'Please enter a title' }]}
+      >
+        <Input placeholder="Ticket title" />
+      </Form.Item>
 
-      <div style={{ marginTop: 10 }}>
-        <label>
-          <input
-            type="checkbox"
-            checked={doneOnChildDone}
-            onChange={(e) => {
-              setDoneOnChildDone(e.target.checked);
-            }}
-          />
-          Done when all draws are done
-        </label>
-      </div>
+      <Form.Item name="done_on_child_done" valuePropName="checked">
+        <Checkbox>Done when all draws are done</Checkbox>
+      </Form.Item>
 
-      <div style={{ marginTop: 10 }}>
-        <strong>Can Draw On:</strong>
-        <div>
+      <Form.Item label="Can Draw On:">
+        <Space wrap>
           {weekdays.map((day) => (
-            <label key={day} style={{ marginRight: 8 }}>
-              <input
-                type="checkbox"
-                checked={dayChecks[`can_draw_${day}`]}
-                onChange={(e) => {
-                  setDayChecks((prev) => ({
-                    ...prev,
-                    [`can_draw_${day}`]: e.target.checked,
-                  }));
-                }}
-              />
-              {day.slice(0, 3)}
-            </label>
+            <Form.Item
+              key={day}
+              name={`can_draw_${day}`}
+              valuePropName="checked"
+              noStyle
+            >
+              <Checkbox>{day.slice(0, 3)}</Checkbox>
+            </Form.Item>
           ))}
-        </div>
-      </div>
+        </Space>
+      </Form.Item>
 
-      <Button type="primary" onClick={handleSubmit} disabled={!title.trim()}>
-        {submitLabel}
-      </Button>
-    </div>
+      <Form.Item>
+        <Button type="primary" htmlType="submit">
+          {submitLabel}
+        </Button>
+      </Form.Item>
+    </Form>
   );
 }

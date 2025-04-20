@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Ticket as TicketType } from '@todo/shared';
-import { ConfigProvider } from 'antd';
-import { AimOutlined, SyncOutlined } from '@ant-design/icons';
+import { ConfigProvider, Typography, Space } from 'antd';
+import { SyncOutlined } from '@ant-design/icons';
 import { RootState, AppDispatch } from './store';
 import {
   fetchTickets,
@@ -53,81 +53,75 @@ function App() {
       }}
     >
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
-        <h1>
-          <AimOutlined /> Today's Draws
-        </h1>
-        <Button
-          type="primary"
-          onClick={() => dispatch(createDraws())}
-          icon={<SyncOutlined />}
-        >
-          Draw Tickets for Today
-        </Button>
+        <Space direction="vertical" size="large">
+          <Typography.Title level={1}>Today's Draws</Typography.Title>
+          <Button
+            type="primary"
+            onClick={() => dispatch(createDraws())}
+            icon={<SyncOutlined />}
+          >
+            Draw Tickets for Today
+          </Button>
 
-        {loadingDraws ? (
-          <p>Loading draws...</p>
-        ) : draws.length === 0 ? (
-          <p>No draws today!</p>
-        ) : (
-          <div style={{ marginTop: 16 }}>
-            {draws.map((draw) => (
-              <Draw
-                key={draw.id}
-                draw={draw}
-                ticket={tickets.find((t) => t.id === draw.ticket_id)}
-                onMarkDone={markDone}
-                onMarkSkipped={markSkipped}
-                onUndo={undoDraw}
-              />
-            ))}
-          </div>
-        )}
+          {loadingDraws ? (
+            <p>Loading draws...</p>
+          ) : draws.length === 0 ? (
+            <p>No draws today!</p>
+          ) : (
+            <Space wrap>
+              {draws.map((draw) => (
+                <Draw
+                  key={draw.id}
+                  draw={draw}
+                  ticket={tickets.find((t) => t.id === draw.ticket_id)}
+                  onMarkDone={markDone}
+                  onMarkSkipped={markSkipped}
+                  onUndo={undoDraw}
+                />
+              ))}
+            </Space>
+          )}
 
-        <Card style={{ margin: '24px 0' }}>
-          <TicketForm
-            submitLabel="Add Ticket"
-            onSubmit={(ticket) => dispatch(addTicket(ticket))}
-          />
-        </Card>
-
-        <h2>
-          <AimOutlined /> All Tickets
-        </h2>
-        {loadingTickets ? (
-          <p>Loading tickets...</p>
-        ) : (
-          <div>
-            {tickets.map((ticket) => (
-              <Ticket
-                key={ticket.id}
-                ticket={ticket}
-                onEdit={setEditingTicket}
-                onDelete={(id) => dispatch(deleteTicket(id))}
-              />
-            ))}
-          </div>
-        )}
-
-        {editingTicket && (
-          <Card style={{ marginTop: 16 }} title="Edit Ticket">
+          <Card>
             <TicketForm
-              key={editingTicket.id}
-              initialValues={editingTicket}
-              submitLabel="Save Changes"
-              onSubmit={(updates) => {
-                dispatch(updateTicket({ id: editingTicket.id, updates }));
-                setEditingTicket(null);
-              }}
+              submitLabel="Add Ticket"
+              onSubmit={(ticket) => dispatch(addTicket(ticket))}
             />
-            <Button
-              onClick={() => {
-                setEditingTicket(null);
-              }}
-            >
-              Cancel
-            </Button>
           </Card>
-        )}
+
+          <Typography.Title level={2}>All Tickets</Typography.Title>
+          {loadingTickets ? (
+            <p>Loading tickets...</p>
+          ) : (
+            <Space wrap>
+              {tickets.map((ticket) => (
+                <Ticket
+                  key={ticket.id}
+                  ticket={ticket}
+                  onEdit={setEditingTicket}
+                  onDelete={(id) => dispatch(deleteTicket(id))}
+                />
+              ))}
+            </Space>
+          )}
+
+          {editingTicket && (
+            <Card title="Edit Ticket">
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <TicketForm
+                  key={editingTicket.id}
+                  initialValues={editingTicket}
+                  submitLabel="Save Changes"
+                  onSubmit={(updates) => {
+                    dispatch(updateTicket({ id: editingTicket.id, updates }));
+                    setEditingTicket(null);
+                  }}
+                />
+                <Button onClick={() => setEditingTicket(null)}>Cancel</Button>
+              </Space>
+            </Card>
+          )}
+        </Space>
       </div>
     </ConfigProvider>
   );
