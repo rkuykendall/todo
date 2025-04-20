@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Ticket } from '@todo/shared';
+import { Ticket as TicketType } from '@todo/shared';
 import { ConfigProvider } from 'antd';
 import { RootState, AppDispatch } from './store';
 import {
@@ -12,6 +12,9 @@ import {
 import { fetchDraws, patchDraw, createDraws } from './drawSlice';
 import TicketForm from './components/TicketForm';
 import Button from './components/Button';
+import Card from './components/Card';
+import Draw from './components/Draw';
+import Ticket from './components/Ticket';
 
 function App() {
   const dispatch = useDispatch<AppDispatch>();
@@ -21,7 +24,7 @@ function App() {
   const { draws, loading: loadingDraws } = useSelector(
     (state: RootState) => state.draws
   );
-  const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
+  const [editingTicket, setEditingTicket] = useState<TicketType | null>(null);
 
   useEffect(() => {
     dispatch(fetchTickets());
@@ -44,15 +47,12 @@ function App() {
     <ConfigProvider
       theme={{
         token: {
-          colorPrimary: '#1890ff',
-          borderRadius: 12,
-          colorBgContainer: '#fefcf5',
-          fontFamily: 'Comic Neue, sans-serif',
+          colorPrimary: '#1677ff',
         },
       }}
     >
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
-        <h1>🎯 Today’s Draws</h1>
+        <h1>🎯 Today's Draws</h1>
         <Button type="primary" onClick={() => dispatch(createDraws())}>
           🎲 Draw Tickets for Today
         </Button>
@@ -62,92 +62,45 @@ function App() {
         ) : draws.length === 0 ? (
           <p>No draws today!</p>
         ) : (
-          <ul>
-            {draws.map((draw) => {
-              const ticket = tickets.find((t) => t.id === draw.ticket_id);
-              return (
-                <li key={draw.id}>
-                  <span>{ticket?.title || 'Untitled'}</span>{' '}
-                  {draw.done || draw.skipped ? (
-                    <Button
-                      onClick={() => {
-                        undoDraw(draw.id);
-                      }}
-                    >
-                      ↩️ Undo
-                    </Button>
-                  ) : (
-                    <>
-                      <Button
-                        type="primary"
-                        onClick={() => {
-                          markDone(draw.id);
-                        }}
-                      >
-                        ✅ Done
-                      </Button>
-                      <Button
-                        danger
-                        onClick={() => {
-                          markSkipped(draw.id);
-                        }}
-                      >
-                        ❌ Skip
-                      </Button>
-                    </>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+          <div style={{ marginTop: 16 }}>
+            {draws.map((draw) => (
+              <Draw
+                key={draw.id}
+                draw={draw}
+                ticket={tickets.find((t) => t.id === draw.ticket_id)}
+                onMarkDone={markDone}
+                onMarkSkipped={markSkipped}
+                onUndo={undoDraw}
+              />
+            ))}
+          </div>
         )}
 
-        <hr />
-
-        <TicketForm
-          submitLabel="Add Ticket"
-          onSubmit={(ticket) => dispatch(addTicket(ticket))}
-        />
-
-        <hr />
+        <Card style={{ margin: '24px 0' }}>
+          <TicketForm
+            submitLabel="Add Ticket"
+            onSubmit={(ticket) => dispatch(addTicket(ticket))}
+          />
+        </Card>
 
         <h2>🗂 All Tickets</h2>
         {loadingTickets ? (
           <p>Loading tickets...</p>
         ) : (
-          <ul>
+          <div>
             {tickets.map((ticket) => (
-              <li key={ticket.id}>
-                <strong>{ticket.title}</strong>{' '}
-                {ticket.done && <span>(Done)</span>}
-                <Button
-                  onClick={() => {
-                    setEditingTicket(ticket);
-                  }}
-                >
-                  ✏️ Edit
-                </Button>
-                <Button
-                  danger
-                  onClick={() => dispatch(deleteTicket(ticket.id))}
-                >
-                  ❌
-                </Button>
-              </li>
+              <Ticket
+                key={ticket.id}
+                ticket={ticket}
+                onEdit={setEditingTicket}
+                onDelete={(id) => dispatch(deleteTicket(id))}
+              />
             ))}
-          </ul>
+          </div>
         )}
 
         {editingTicket && (
-          <div
-            style={{
-              background: '#333',
-              padding: 16,
-              border: '1px solid #ccc',
-              marginTop: 16,
-            }}
-          >
-            <h3>Edit Ticket</h3>
+          <Card style={{ marginTop: 16 }} title="Edit Ticket">
             <TicketForm
               key={editingTicket.id}
               initialValues={editingTicket}
@@ -164,7 +117,7 @@ function App() {
             >
               Cancel
             </Button>
-          </div>
+          </Card>
         )}
       </div>
     </ConfigProvider>
