@@ -27,24 +27,23 @@ export function Draw({
 }: DrawProps) {
   return (
     <Card
-      title={ticket?.title || 'Untitled'}
       actions={
         draw.done || draw.skipped
           ? [
               <Button
+                icon={<UndoOutlined />}
                 key="undo"
                 onClick={() => onUndo(draw.id)}
-                icon={<UndoOutlined />}
               >
                 Undo
               </Button>,
             ]
           : [
               <Button
-                key="done"
-                type="link"
-                onClick={() => onMarkDone(draw.id)}
                 icon={<CheckOutlined />}
+                key="done"
+                onClick={() => onMarkDone(draw.id)}
+                type="link"
               >
                 Done
               </Button>,
@@ -57,15 +56,16 @@ export function Draw({
               </Button>,
             ]
       }
+      title={ticket?.title || 'Untitled'}
     >
       <p>
         Status:{' '}
         {draw.done ? (
-          <ColorIcon icon={<CheckOutlined />} type="success" label="Done" />
+          <ColorIcon icon={<CheckOutlined />} label="Done" type="success" />
         ) : draw.skipped ? (
-          <ColorIcon icon={<CloseOutlined />} type="error" label="Skipped" />
+          <ColorIcon icon={<CloseOutlined />} label="Skipped" type="error" />
         ) : (
-          <ColorIcon icon={<HourglassOutlined />} type="info" label="Pending" />
+          <ColorIcon icon={<HourglassOutlined />} label="Pending" type="info" />
         )}
       </p>
     </Card>

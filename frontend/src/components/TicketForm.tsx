@@ -29,6 +29,11 @@ interface FormValues {
   [key: `can_draw_${(typeof weekdays)[number]}`]: boolean;
 }
 
+const toLabel = (day: string): string => {
+  const firstLetter = day.charAt(0).toUpperCase();
+  return `${firstLetter}${day.slice(1, 3)}`;
+};
+
 function TicketForm({
   initialValues = emptyValues,
   onSubmit,
@@ -60,22 +65,20 @@ function TicketForm({
 
   return (
     <Modal
-      title={title}
-      open={open}
-      onCancel={onCancel}
       footer={[
         <Button key="cancel" onClick={onCancel}>
           Cancel
         </Button>,
-        <Button key="submit" type="primary" onClick={() => form.submit()}>
+        <Button key="submit" onClick={() => form.submit()} type="primary">
           {initialValues.id ? 'Save Changes' : 'Add Ticket'}
         </Button>,
       ]}
+      onCancel={onCancel}
+      open={open}
+      title={title}
     >
       <Form<FormValues>
         form={form}
-        onFinish={handleSubmit}
-        layout="vertical"
         initialValues={{
           title: '',
           done_on_child_done: false,
@@ -83,6 +86,8 @@ function TicketForm({
             weekdays.map((day) => [`can_draw_${day}`, false])
           ),
         }}
+        layout="vertical"
+        onFinish={handleSubmit}
       >
         <Form.Item
           label="Title"
@@ -102,10 +107,10 @@ function TicketForm({
               <Form.Item
                 key={day}
                 name={`can_draw_${day}`}
-                valuePropName="checked"
                 noStyle
+                valuePropName="checked"
               >
-                <Checkbox>{day.slice(0, 3)}</Checkbox>
+                <Checkbox>{toLabel(day)}</Checkbox>
               </Form.Item>
             ))}
           </Space>

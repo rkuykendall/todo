@@ -58,17 +58,19 @@ function App() {
       <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
         <Space direction="vertical" size="large">
           <Typography.Title level={1}>Today's Draws</Typography.Title>
+
           <Space>
             <Button
-              type="primary"
-              onClick={() => dispatch(createDraws())}
               icon={<SyncOutlined />}
+              onClick={() => dispatch(createDraws())}
+              type="primary"
             >
               Draw Tickets for Today
             </Button>
+
             <Button
-              onClick={() => setIsAddModalOpen(true)}
               icon={<PlusOutlined />}
+              onClick={() => setIsAddModalOpen(true)}
             >
               Add Ticket
             </Button>
@@ -82,18 +84,19 @@ function App() {
             <Space wrap>
               {draws.map((draw) => (
                 <Draw
-                  key={draw.id}
                   draw={draw}
-                  ticket={tickets.find((t) => t.id === draw.ticket_id)}
+                  key={draw.id}
                   onMarkDone={markDone}
                   onMarkSkipped={markSkipped}
                   onUndo={undoDraw}
+                  ticket={tickets.find((t) => t.id === draw.ticket_id)}
                 />
               ))}
             </Space>
           )}
 
           <Typography.Title level={2}>All Tickets</Typography.Title>
+
           {loadingTickets ? (
             <p>Loading tickets...</p>
           ) : (
@@ -101,35 +104,35 @@ function App() {
               {tickets.map((ticket) => (
                 <Ticket
                   key={ticket.id}
-                  ticket={ticket}
-                  onEdit={setEditingTicket}
                   onDelete={(id) => dispatch(deleteTicket(id))}
+                  onEdit={setEditingTicket}
+                  ticket={ticket}
                 />
               ))}
             </Space>
           )}
 
           <TicketForm
-            title="Add New Ticket"
-            open={isAddModalOpen}
             onCancel={() => setIsAddModalOpen(false)}
             onSubmit={(ticket) => {
               dispatch(addTicket(ticket));
               setIsAddModalOpen(false);
             }}
+            open={isAddModalOpen}
+            title="Add New Ticket"
           />
 
           <TicketForm
-            title="Edit Ticket"
-            open={!!editingTicket}
-            onCancel={() => setEditingTicket(null)}
             initialValues={editingTicket || undefined}
+            onCancel={() => setEditingTicket(null)}
             onSubmit={(updates) => {
               if (editingTicket) {
                 dispatch(updateTicket({ id: editingTicket.id, updates }));
                 setEditingTicket(null);
               }
             }}
+            open={!!editingTicket}
+            title="Edit Ticket"
           />
         </Space>
       </div>

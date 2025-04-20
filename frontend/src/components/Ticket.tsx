@@ -12,24 +12,24 @@ interface TicketProps {
 export function Ticket({ ticket, onEdit, onDelete }: TicketProps) {
   return (
     <Card
-      style={{ marginBottom: 16 }}
-      title={ticket.title}
-      extra={ticket.done && <span>(Done)</span>}
       actions={[
         <Button
+          icon={<EditOutlined />}
           key="edit"
           onClick={() => onEdit(ticket)}
-          icon={<EditOutlined />}
           type="text"
-        ></Button>,
+        />,
         <Button
-          key="delete"
           danger
-          onClick={() => onDelete(ticket.id)}
           icon={<DeleteOutlined />}
+          key="delete"
+          onClick={() => onDelete(ticket.id)}
           type="text"
-        ></Button>,
+        />,
       ]}
+      extra={ticket.done && <span>(Done)</span>}
+      style={{ marginBottom: 16 }}
+      title={ticket.title}
     >
       <div>
         Last drawn:{' '}
@@ -37,6 +37,7 @@ export function Ticket({ ticket, onEdit, onDelete }: TicketProps) {
           ? new Date(ticket.last_drawn).toLocaleDateString()
           : 'Never'}
       </div>
+
       <div>
         Draw days:{' '}
         {Object.entries(ticket)

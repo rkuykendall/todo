@@ -3,6 +3,7 @@ import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
+import stylisticJsx from '@stylistic/eslint-plugin-jsx';
 
 /** @type {import("eslint").Linter.Config[]} */
 const baseConfig = [
@@ -29,6 +30,7 @@ const baseConfig = [
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
       '@typescript-eslint': tseslint.plugin,
+      '@stylistic/jsx': stylisticJsx,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -36,6 +38,9 @@ const baseConfig = [
         'warn',
         { allowConstantExport: true },
       ],
+      ...stylisticJsx.configs.all.rules,
+      '@stylistic/jsx/jsx-one-expression-per-line': 'off',
+      '@stylistic/jsx/jsx-newline': 'off',
     },
   },
   js.configs.recommended,
