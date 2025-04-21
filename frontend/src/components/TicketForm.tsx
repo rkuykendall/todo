@@ -1,6 +1,6 @@
-import { Ticket, dayFields } from '@todo/shared';
+import { Ticket, dayFields, formatDateISO } from '@todo/shared';
 import { useEffect } from 'react';
-import { Form, Input, Checkbox, Space, Modal, Switch } from 'antd';
+import { Form, Input, Checkbox, Space, Modal, Switch, DatePicker } from 'antd';
 import Button from './Button';
 
 interface TicketFormProps {
@@ -12,6 +12,8 @@ interface TicketFormProps {
 }
 
 type FormValues = Pick<Ticket, 'title' | 'done_on_child_done'> & {
+  deadline: string | null;
+} & {
   [P in
     | `can_draw_${(typeof dayFields)[number]}`
     | `must_draw_${(typeof dayFields)[number]}`]: boolean;
@@ -20,6 +22,7 @@ type FormValues = Pick<Ticket, 'title' | 'done_on_child_done'> & {
 const emptyValues: FormValues = {
   title: '',
   done_on_child_done: true,
+  deadline: null,
   ...Object.fromEntries(
     dayFields.flatMap((day) => [
       [`can_draw_${day}`, dayFields.slice(0, 5).includes(day)],
@@ -48,6 +51,7 @@ function TicketForm({
         title: initialValues.title ?? emptyValues.title,
         done_on_child_done:
           initialValues.done_on_child_done ?? emptyValues.done_on_child_done,
+        deadline: initialValues.deadline || null,
         ...Object.fromEntries(
           dayFields.flatMap((day) => [
             [
@@ -95,6 +99,14 @@ function TicketForm({
           rules={[{ required: true, message: 'Please enter a title' }]}
         >
           <Input placeholder="Ticket title" />
+        </Form.Item>
+
+        <Form.Item name="deadline" label="Deadline">
+          <DatePicker
+            onChange={(date) => {
+              form.setFieldValue('deadline', formatDateISO(date));
+            }}
+          />
         </Form.Item>
 
         <Form.Item

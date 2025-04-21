@@ -33,3 +33,30 @@ export interface Ticket {
   can_draw_sunday: boolean;
   must_draw_sunday: boolean;
 }
+
+const dateToIsoDateString = (date: Date): string => {
+  const isoString = date.toISOString();
+  return isoString.split('T')[0];
+};
+
+export function formatDateISO(date: unknown): string {
+  const now = dateToIsoDateString(new Date());
+
+  if (date === null || date === undefined) {
+    return now;
+  }
+
+  try {
+    if (date instanceof Date) {
+      return dateToIsoDateString(date);
+    }
+
+    if (typeof date === 'string' || typeof date === 'number') {
+      return dateToIsoDateString(new Date(date));
+    }
+
+    return now;
+  } catch {
+    return now;
+  }
+}

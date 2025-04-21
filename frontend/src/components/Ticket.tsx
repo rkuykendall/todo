@@ -2,7 +2,12 @@ import { Ticket as TicketType } from '@todo/shared';
 import Button from './Button';
 import Card from './Card';
 import DayIndicator from './DayIndicator';
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import {
+  EditOutlined,
+  DeleteOutlined,
+  ClockCircleOutlined,
+} from '@ant-design/icons';
+import { formatDate } from '../utils';
 
 interface TicketProps {
   ticket: TicketType;
@@ -32,12 +37,13 @@ export function Ticket({ ticket, onEdit, onDelete }: TicketProps) {
       style={{ marginBottom: 16 }}
       title={ticket.title}
     >
-      <div>
-        Last drawn:{' '}
-        {ticket.last_drawn
-          ? new Date(ticket.last_drawn).toLocaleDateString()
-          : 'Never'}
-      </div>
+      <div>Last drawn: {formatDate(ticket.last_drawn)}</div>
+
+      {ticket.deadline && (
+        <div>
+          <ClockCircleOutlined /> Deadline: {formatDate(ticket.deadline)}
+        </div>
+      )}
 
       <div>
         Draw days: <DayIndicator canDraw={ticket} mustDraw={ticket} />

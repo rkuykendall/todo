@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
 import db from './db/index.js';
-import { dayFields } from '@todo/shared/index.js';
+import { dayFields, formatDateISO } from '@todo/shared/index.js';
 import type { Day, Ticket } from '@todo/shared/index.js';
 import { NewTicketSchema, UpdateTicketSchema } from './types/ticket.js';
 import { PatchTicketDrawSchema, TicketDraw } from './types/ticket_draw.js';
@@ -208,7 +208,7 @@ function getTodayDayString(): string {
 
 // Utility: Get ISO date string for YYYY-MM-DD (used for filtering)
 function getTodayDate(): string {
-  return new Date().toISOString().split('T')[0];
+  return formatDateISO(new Date());
 }
 
 app.get('/ticket_draw', (_req, res) => {
