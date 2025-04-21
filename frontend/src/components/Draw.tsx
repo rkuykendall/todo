@@ -3,12 +3,15 @@ import { TicketDraw } from '../drawSlice';
 import Button from './Button';
 import Card from './Card';
 import ColorIcon from './ColorIcon';
+import { Alert } from 'antd';
 import {
   UndoOutlined,
   CheckOutlined,
   CloseOutlined,
   HourglassOutlined,
 } from '@ant-design/icons';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store';
 
 interface DrawProps {
   draw: TicketDraw;
@@ -25,6 +28,11 @@ export function Draw({
   onMarkSkipped,
   onUndo,
 }: DrawProps) {
+  const { error, patchLoading } = useSelector(
+    (state: RootState) => state.draws
+  );
+  const isLoading = patchLoading[draw.id];
+
   return (
     <Card
       actions={
@@ -33,6 +41,7 @@ export function Draw({
               <Button
                 icon={<UndoOutlined />}
                 key="undo"
+                loading={isLoading}
                 onClick={() => onUndo(draw.id)}
               >
                 Undo
@@ -42,6 +51,7 @@ export function Draw({
               <Button
                 icon={<CheckOutlined />}
                 key="done"
+                loading={isLoading}
                 onClick={() => onMarkDone(draw.id)}
                 type="link"
               >
@@ -49,6 +59,7 @@ export function Draw({
               </Button>,
               <Button
                 key="skip"
+                loading={isLoading}
                 onClick={() => onMarkSkipped(draw.id)}
                 type="text"
               >
@@ -58,6 +69,9 @@ export function Draw({
       }
       title={ticket?.title || 'Untitled'}
     >
+      {error && (
+        <Alert message={error} type="error" style={{ marginBottom: 16 }} />
+      )}
       <p>
         Status:{' '}
         {draw.done ? (

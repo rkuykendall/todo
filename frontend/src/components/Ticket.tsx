@@ -8,6 +8,8 @@ import {
   ClockCircleOutlined,
 } from '@ant-design/icons';
 import { formatDate } from '../utils';
+import { useSelector } from 'react-redux';
+import { RootState } from '../store';
 
 interface TicketProps {
   ticket: TicketType;
@@ -16,12 +18,20 @@ interface TicketProps {
 }
 
 export function Ticket({ ticket, onEdit, onDelete }: TicketProps) {
+  const { updateLoading, deleteLoading } = useSelector(
+    (state: RootState) => state.tickets
+  );
+
+  const isUpdateLoading = updateLoading[ticket.id];
+  const isDeleteLoading = deleteLoading[ticket.id];
+
   return (
     <Card
       actions={[
         <Button
           icon={<EditOutlined />}
           key="edit"
+          loading={isUpdateLoading}
           onClick={() => onEdit(ticket)}
           type="text"
         />,
@@ -29,6 +39,7 @@ export function Ticket({ ticket, onEdit, onDelete }: TicketProps) {
           danger
           icon={<DeleteOutlined />}
           key="delete"
+          loading={isDeleteLoading}
           onClick={() => onDelete(ticket.id)}
           type="text"
         />,

@@ -6,12 +6,18 @@ interface TicketState {
   tickets: Ticket[];
   loading: boolean;
   error: string | null;
+  addLoading: boolean;
+  updateLoading: Record<string, boolean>;
+  deleteLoading: Record<string, boolean>;
 }
 
 const initialState: TicketState = {
   tickets: [],
   loading: false,
   error: null,
+  addLoading: false,
+  updateLoading: {},
+  deleteLoading: {},
 };
 
 // Fetch all tickets
@@ -77,23 +83,31 @@ const ticketSlice = createSlice({
         (state, action: PayloadAction<Ticket[]>) => {
           state.tickets = action.payload;
           state.loading = false;
+          state.error = null;
         }
       )
       .addCase(fetchTickets.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch tickets';
+        state.tickets = [];
+      })
+      .addCase(addTicket.pending, (state) => {
+        state.addLoading = true;
+        state.error = null;
       })
       .addCase(addTicket.fulfilled, (state, action: PayloadAction<Ticket>) => {
         state.tickets.push(action.payload);
+        state.addLoading = false;
+        state.error = null;
       })
-      .addCase(
-        deleteTicket.fulfilled,
-        (state, action: PayloadAction<string>) => {
-          state.tickets = state.tickets.filter(
-            (ticket) => ticket.id !== action.payload
-          );
-        }
-      )
+      .addCase(addTicket.rejected, (state, action) => {
+        state.addLoading = false;
+        state.error = action.error.message || 'Failed to add ticket';
+      })
+      .addCase(updateTicket.pending, (state, action) => {
+        state.updateLoading[action.meta.arg.id] = true;
+        state.error = null;
+      })
       .addCase(
         updateTicket.fulfilled,
         (state, action: PayloadAction<Ticket>) => {
@@ -103,8 +117,36 @@ const ticketSlice = createSlice({
           if (index !== -1) {
             state.tickets[index] = action.payload;
           }
+          state.updateLoading[action.payload.id] = false;
+          state.error = null;
         }
-      );
+      )
+      .addCase(updateTicket.rejected, (state, action) => {
+        if (action.meta.arg.id) {
+          state.updateLoading[action.meta.arg.id] = false;
+        }
+        state.error = action.error.message || 'Failed to update ticket';
+      })
+      .addCase(deleteTicket.pending, (state, action) => {
+        state.deleteLoading[action.meta.arg] = true;
+        state.error = null;
+      })
+      .addCase(
+        deleteTicket.fulfilled,
+        (state, action: PayloadAction<string>) => {
+          state.tickets = state.tickets.filter(
+            (ticket) => ticket.id !== action.payload
+          );
+          delete state.deleteLoading[action.payload];
+          state.error = null;
+        }
+      )
+      .addCase(deleteTicket.rejected, (state, action) => {
+        if (typeof action.meta.arg === 'string') {
+          delete state.deleteLoading[action.meta.arg];
+        }
+        state.error = action.error.message || 'Failed to delete ticket';
+      });
   },
 });
 

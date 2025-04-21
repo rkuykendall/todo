@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { API_DOMAIN } from './utils';
+import { deleteTicket } from './ticketSlice';
 
 export interface TicketDraw {
   id: string;
@@ -13,12 +14,16 @@ interface DrawState {
   draws: TicketDraw[];
   loading: boolean;
   error: string | null;
+  createLoading: boolean;
+  patchLoading: Record<string, boolean>;
 }
 
 const initialState: DrawState = {
   draws: [],
   loading: false,
   error: null,
+  createLoading: false,
+  patchLoading: {},
 };
 
 // 🔄 Fetch today's draws
@@ -63,11 +68,33 @@ const drawSlice = createSlice({
         (state, action: PayloadAction<TicketDraw[]>) => {
           state.draws = action.payload;
           state.loading = false;
+          state.error = null;
         }
       )
       .addCase(fetchDraws.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch draws';
+        state.draws = [];
+      })
+      .addCase(createDraws.pending, (state) => {
+        state.createLoading = true;
+        state.error = null;
+      })
+      .addCase(
+        createDraws.fulfilled,
+        (state, action: PayloadAction<TicketDraw[]>) => {
+          state.draws = action.payload;
+          state.createLoading = false;
+          state.error = null;
+        }
+      )
+      .addCase(createDraws.rejected, (state, action) => {
+        state.createLoading = false;
+        state.error = action.error.message || 'Failed to create draws';
+      })
+      .addCase(patchDraw.pending, (state, action) => {
+        state.patchLoading[action.meta.arg.id] = true;
+        state.error = null;
       })
       .addCase(
         patchDraw.fulfilled,
@@ -78,14 +105,22 @@ const drawSlice = createSlice({
           if (index !== -1) {
             state.draws[index] = action.payload;
           }
+          state.patchLoading[action.payload.id] = false;
+          state.error = null;
         }
       )
-      .addCase(
-        createDraws.fulfilled,
-        (state, action: PayloadAction<TicketDraw[]>) => {
-          state.draws = action.payload;
+      .addCase(patchDraw.rejected, (state, action) => {
+        if (action.meta.arg.id) {
+          state.patchLoading[action.meta.arg.id] = false;
         }
-      );
+        state.error = action.error.message || 'Failed to update draw';
+      })
+      // Add handler for ticket deletion
+      .addCase(deleteTicket.fulfilled, (state, action) => {
+        state.draws = state.draws.filter(
+          (draw) => draw.ticket_id !== action.payload
+        );
+      });
   },
 });
 
