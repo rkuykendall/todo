@@ -20,11 +20,11 @@
   "packageManager": "npm@9.0.0",
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
-      "prettier --write",
-      "eslint --fix"
+      "npm run format",
+      "npm run lint:fix"
     ],
     "*.{json,md,yml,css,html}": [
-      "prettier --write"
+      "npm run format"
     ]
   }
 }

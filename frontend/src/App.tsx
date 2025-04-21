@@ -73,7 +73,7 @@ function App() {
         },
       }}
     >
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
+      <div style={{ maxWidth: 1064, margin: '0 auto', padding: '1rem' }}>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <Typography.Title level={1}>Today's Draws</Typography.Title>
 

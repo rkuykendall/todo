@@ -98,7 +98,7 @@ function TicketForm({
           name="title"
           rules={[{ required: true, message: 'Please enter a title' }]}
         >
-          <Input placeholder="Ticket title" />
+          <Input placeholder="Ticket title" autoFocus />
         </Form.Item>
 
         <Form.Item name="deadline" label="Deadline">
