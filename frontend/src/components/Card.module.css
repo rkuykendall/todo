@@ -3,6 +3,8 @@
   height: 280px;
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow: hidden;
 }
 
 .card :global(.ant-card-body) {
@@ -12,4 +14,35 @@
 
 .card :global(.ant-card-actions) {
   margin-top: auto;
+}
+
+.card[data-done='true']::before {
+  content: '';
+  position: absolute;
+  top: -100%;
+  left: -100%;
+  width: 120%;
+  height: 300%;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(83, 198, 110, 0.1),
+    transparent
+  );
+  transform: rotate(35deg);
+  animation: shine 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes shine {
+  0% {
+    left: -150%;
+  }
+  50% {
+    left: 150%;
+  }
+  100% {
+    left: 150%;
+  }
 }
