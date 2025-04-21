@@ -11,8 +11,6 @@ interface ColorIconProps {
 export function ColorIcon({ icon, type = 'info', label }: ColorIconProps) {
   const { token } = theme.useToken();
 
-  console.log({ token });
-
   const colorMap = {
     success: token.colorSuccess,
     error: token.colorError,

@@ -2,8 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
 import db from './db/index.ts';
-import { dayFields, formatDateISO } from '@todo/shared/index.ts';
-import type { Day, Ticket } from '@todo/shared/index.ts';
+import { dayFields, formatDateISO } from '@todo/shared';
+import type { Day, Ticket } from '@todo/shared';
 import { NewTicketSchema, UpdateTicketSchema } from './types/ticket.ts';
 import { PatchTicketDrawSchema, type TicketDraw } from './types/ticket_draw.ts';
 
