@@ -1,6 +1,7 @@
 import { Ticket, dayFields, formatDateISO } from '@todo/shared';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Form, Input, Checkbox, Space, Modal, Switch, DatePicker } from 'antd';
+import type { InputRef } from 'antd';
 import Button from './Button';
 
 interface TicketFormProps {
@@ -44,6 +45,7 @@ function TicketForm({
   onCancel,
 }: TicketFormProps) {
   const [form] = Form.useForm<FormValues>();
+  const titleInputRef = useRef<InputRef>(null);
 
   useEffect(() => {
     if (open) {
@@ -65,6 +67,11 @@ function TicketForm({
           ])
         ),
       });
+
+      // Focus the title input when modal opens
+      setTimeout(() => {
+        titleInputRef.current?.focus();
+      }, 100);
     }
   }, [form, initialValues, open]);
 
@@ -98,7 +105,7 @@ function TicketForm({
           name="title"
           rules={[{ required: true, message: 'Please enter a title' }]}
         >
-          <Input placeholder="Ticket title" autoFocus />
+          <Input ref={titleInputRef} placeholder="Ticket title" />
         </Form.Item>
 
         <Form.Item name="deadline" label="Deadline">
