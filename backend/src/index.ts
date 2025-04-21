@@ -27,7 +27,6 @@ interface RawDbDraw {
   created_at: string;
   ticket_id: string;
   done: number;
-  made_progress: number;
   skipped: number;
 }
 
@@ -61,7 +60,6 @@ function normalizeDraw(draw: RawDbDraw): TicketDraw {
   return {
     ...draw,
     done: Boolean(draw.done),
-    made_progress: Boolean(draw.made_progress),
     skipped: Boolean(draw.skipped),
   };
 }
@@ -236,8 +234,8 @@ app.post('/ticket_draw', (_req, res) => {
   const existingTicketIds = new Set(existingDraws.map((d) => d.ticket_id));
 
   const insert = db.prepare(`
-    INSERT INTO ticket_draw (id, created_at, ticket_id, done, made_progress, skipped)
-    VALUES (?, CURRENT_TIMESTAMP, ?, 0, 0, 0)
+    INSERT INTO ticket_draw (id, created_at, ticket_id, done, skipped)
+    VALUES (?, CURRENT_TIMESTAMP, ?, 0, 0)
   `);
 
   for (const ticket of eligibleTickets) {

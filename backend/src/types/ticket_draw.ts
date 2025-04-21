@@ -2,7 +2,6 @@ import { z } from 'zod';
 
 export const PatchTicketDrawSchema = z.object({
   done: z.boolean().optional(),
-  made_progress: z.boolean().optional(),
   skipped: z.boolean().optional(),
 });
 
@@ -13,6 +12,5 @@ export interface TicketDraw {
   created_at: string;
   ticket_id: string;
   done: boolean;
-  made_progress: boolean;
   skipped: boolean;
 }

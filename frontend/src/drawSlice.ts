@@ -5,7 +5,6 @@ export interface TicketDraw {
   created_at: string;
   ticket_id: string;
   done: boolean;
-  made_progress: boolean;
   skipped: boolean;
 }
 

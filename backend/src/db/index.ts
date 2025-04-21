@@ -42,7 +42,6 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     ticket_id TEXT NOT NULL,
     done BOOLEAN DEFAULT 0,
-    made_progress BOOLEAN DEFAULT 0,
     skipped BOOLEAN DEFAULT 0,
     FOREIGN KEY (ticket_id) REFERENCES ticket(id) ON DELETE CASCADE
   );
