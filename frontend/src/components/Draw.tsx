@@ -67,22 +67,21 @@ export function Draw({
               </Button>,
             ]
       }
+      title={
+        draw.done ? (
+          <ColorIcon icon={<CheckOutlined />} label="Done" type="success" />
+        ) : draw.skipped ? (
+          <ColorIcon icon={<CloseOutlined />} label="Skipped" type="error" />
+        ) : (
+          <ColorIcon icon={<HourglassOutlined />} label="To-do" type="info" />
+        )
+      }
     >
       {ticket?.title && (
         <Typography.Title level={5}>{ticket.title}</Typography.Title>
       )}
 
       {error && <Alert message={error} type="error" />}
-      <p>
-        Status:{' '}
-        {draw.done ? (
-          <ColorIcon icon={<CheckOutlined />} label="Done" type="success" />
-        ) : draw.skipped ? (
-          <ColorIcon icon={<CloseOutlined />} label="Skipped" type="error" />
-        ) : (
-          <ColorIcon icon={<HourglassOutlined />} label="Pending" type="info" />
-        )}
-      </p>
     </Card>
   );
 }

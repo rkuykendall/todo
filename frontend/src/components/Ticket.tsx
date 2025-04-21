@@ -46,10 +46,9 @@ export function Ticket({ ticket, onEdit, onDelete }: TicketProps) {
         />,
       ]}
       extra={ticket.done && <span>(Done)</span>}
+      title={<DayIndicator ticket={ticket} />}
     >
       <Space direction="vertical">
-        <DayIndicator ticket={ticket} />
-
         <div>
           <Typography.Title level={5}>{ticket.title}</Typography.Title>
           <div>Last drawn: {formatDate(ticket.last_drawn)}</div>
