@@ -3,7 +3,7 @@ import { TicketDraw } from '../drawSlice';
 import Button from './Button';
 import Card from './Card';
 import ColorIcon from './ColorIcon';
-import { Alert, Badge, Typography } from 'antd';
+import { Alert, Typography } from 'antd';
 import {
   UndoOutlined,
   CheckOutlined,
