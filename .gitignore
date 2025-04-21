@@ -1,4 +1,6 @@
 **/node_modules
+**/dist
+shared/*.js
 */.vite
 *.db
 .DS_Store

@@ -37,6 +37,9 @@ services:
         cd /app
         npm install
 
+        echo "Building shared library..."
+        npm run build --workspace=shared
+
         echo "Building backend workspace..."
         npm run build --workspace=backend
 
