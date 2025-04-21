@@ -223,27 +223,55 @@ app.post('/ticket_draw', (_req, res) => {
   const today = getTodayDate();
   const todayDay = getTodayDayString();
 
-  const eligibleTickets = db
-    .prepare(`SELECT * FROM ticket WHERE can_draw_${todayDay} = 1`)
-    .all() as RawDbTicket[];
-
+  // Get existing draws for today
   const existingDraws = db
     .prepare('SELECT ticket_id FROM ticket_draw WHERE DATE(created_at) = ?')
     .all(today) as Array<{ ticket_id: string }>;
-
   const existingTicketIds = new Set(existingDraws.map((d) => d.ticket_id));
+
+  // First, get all must_draw tickets for today
+  const mustDrawTickets = db
+    .prepare(`SELECT * FROM ticket WHERE must_draw_${todayDay} = 1`)
+    .all() as RawDbTicket[];
+
+  // Then, get all eligible can_draw tickets that aren't must_draw
+  const canDrawTickets = db
+    .prepare(
+      `SELECT * FROM ticket WHERE can_draw_${todayDay} = 1 AND must_draw_${todayDay} = 0`
+    )
+    .all() as RawDbTicket[];
 
   const insert = db.prepare(`
     INSERT INTO ticket_draw (id, created_at, ticket_id, done, skipped)
     VALUES (?, CURRENT_TIMESTAMP, ?, 0, 0)
   `);
 
-  for (const ticket of eligibleTickets) {
-    if (existingTicketIds.has(ticket.id)) continue;
-    const id = uuidv4();
-    insert.run(id, ticket.id);
+  // Add all must_draw tickets that don't already have a draw
+  for (const ticket of mustDrawTickets) {
+    if (!existingTicketIds.has(ticket.id)) {
+      const id = uuidv4();
+      insert.run(id, ticket.id);
+      existingTicketIds.add(ticket.id);
+    }
   }
 
+  // Randomly select from can_draw tickets until we reach at least 5 total tickets
+  const remainingCanDraw = canDrawTickets.filter(
+    (t) => !existingTicketIds.has(t.id)
+  );
+  while (existingTicketIds.size < 5 && remainingCanDraw.length > 0) {
+    const randomIndex = Math.floor(Math.random() * remainingCanDraw.length);
+    const ticket = remainingCanDraw[randomIndex];
+
+    const id = uuidv4();
+    insert.run(id, ticket.id);
+    existingTicketIds.add(ticket.id);
+
+    // Remove the selected ticket from remainingCanDraw
+    remainingCanDraw.splice(randomIndex, 1);
+  }
+
+  // Get all draws for today, including the newly created ones
   const todaysDraws = db
     .prepare('SELECT * FROM ticket_draw WHERE DATE(created_at) = ?')
     .all(today) as RawDbDraw[];
