@@ -36,7 +36,7 @@ export interface Ticket {
 
 const dateToIsoDateString = (date: Date): string => {
   const isoString = date.toISOString();
-  return isoString.split('T')[0];
+  return isoString.split('T')[0] || '';
 };
 
 export function formatDateISO(date: unknown): string {
