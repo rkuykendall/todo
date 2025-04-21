@@ -137,13 +137,13 @@ const ticketSlice = createSlice({
           state.tickets = state.tickets.filter(
             (ticket) => ticket.id !== action.payload
           );
-          delete state.deleteLoading[action.payload];
+          state.deleteLoading[action.payload] = false;
           state.error = null;
         }
       )
       .addCase(deleteTicket.rejected, (state, action) => {
         if (typeof action.meta.arg === 'string') {
-          delete state.deleteLoading[action.meta.arg];
+          state.deleteLoading[action.meta.arg] = false;
         }
         state.error = action.error.message || 'Failed to delete ticket';
       });
