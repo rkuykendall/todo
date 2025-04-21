@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { API_DOMAIN } from './utils';
 
 export interface TicketDraw {
   id: string;
@@ -13,8 +14,6 @@ interface DrawState {
   loading: boolean;
   error: string | null;
 }
-
-const API_DOMAIN = import.meta.env.VITE_API_DOMAIN || 'http://localhost:4000';
 
 const initialState: DrawState = {
   draws: [],
