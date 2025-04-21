@@ -10,6 +10,7 @@ import {
 import { formatDate } from '../utils';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
+import { Space, Typography } from 'antd';
 
 interface TicketProps {
   ticket: TicketType;
@@ -45,20 +46,21 @@ export function Ticket({ ticket, onEdit, onDelete }: TicketProps) {
         />,
       ]}
       extra={ticket.done && <span>(Done)</span>}
-      style={{ marginBottom: 16 }}
-      title={ticket.title}
     >
-      <div>Last drawn: {formatDate(ticket.last_drawn)}</div>
+      <Space direction="vertical">
+        <DayIndicator ticket={ticket} />
 
-      {ticket.deadline && (
         <div>
-          <ClockCircleOutlined /> Deadline: {formatDate(ticket.deadline)}
+          <Typography.Title level={5}>{ticket.title}</Typography.Title>
+          <div>Last drawn: {formatDate(ticket.last_drawn)}</div>
         </div>
-      )}
 
-      <div>
-        Draw days: <DayIndicator canDraw={ticket} mustDraw={ticket} />
-      </div>
+        {ticket.deadline && (
+          <div>
+            <ClockCircleOutlined /> Deadline: {formatDate(ticket.deadline)}
+          </div>
+        )}
+      </Space>
     </Card>
   );
 }

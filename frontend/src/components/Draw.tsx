@@ -3,7 +3,7 @@ import { TicketDraw } from '../drawSlice';
 import Button from './Button';
 import Card from './Card';
 import ColorIcon from './ColorIcon';
-import { Alert } from 'antd';
+import { Alert, Badge, Typography } from 'antd';
 import {
   UndoOutlined,
   CheckOutlined,
@@ -67,11 +67,12 @@ export function Draw({
               </Button>,
             ]
       }
-      title={ticket?.title || 'Untitled'}
     >
-      {error && (
-        <Alert message={error} type="error" style={{ marginBottom: 16 }} />
+      {ticket?.title && (
+        <Typography.Title level={5}>{ticket.title}</Typography.Title>
       )}
+
+      {error && <Alert message={error} type="error" />}
       <p>
         Status:{' '}
         {draw.done ? (
