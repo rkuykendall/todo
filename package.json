@@ -4,7 +4,8 @@
   "scripts": {
     "format": "npm run format --workspace=frontend && npm run format --workspace=backend && npm run format --workspace=shared",
     "lint": "npm run lint --workspace=frontend && npm run lint --workspace=backend && npm run lint --workspace=shared",
-    "lint:fix": "npm run lint:fix --workspace=frontend && npm run lint:fix --workspace=backend && npm run lint:fix --workspace=shared"
+    "lint:fix": "npm run lint:fix --workspace=frontend && npm run lint:fix --workspace=backend && npm run lint:fix --workspace=shared",
+    "prepare": "husky install"
   },
   "workspaces": [
     "frontend",
@@ -12,7 +13,18 @@
     "shared"
   ],
   "devDependencies": {
+    "husky": "^8.0.0",
+    "lint-staged": "^15.5.1",
     "prettier": "^3.5.3"
   },
-  "packageManager": "npm@9.0.0"
+  "packageManager": "npm@9.0.0",
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,md,yml,css,html}": [
+      "prettier --write"
+    ]
+  }
 }
