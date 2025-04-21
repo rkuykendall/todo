@@ -10,7 +10,7 @@ import {
 import { formatDate } from '../utils';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { Space, Typography } from 'antd';
+import { Space, Typography, Popconfirm } from 'antd';
 
 interface TicketProps {
   ticket: TicketType;
@@ -36,14 +36,22 @@ export function Ticket({ ticket, onEdit, onDelete }: TicketProps) {
           onClick={() => onEdit(ticket)}
           type="text"
         />,
-        <Button
-          danger
-          icon={<DeleteOutlined />}
+        <Popconfirm
           key="delete"
-          loading={isDeleteLoading}
-          onClick={() => onDelete(ticket.id)}
-          type="text"
-        />,
+          title="Delete Ticket"
+          description={`Are you sure you want to delete "${ticket.title}"?`}
+          okText="Yes"
+          cancelText="No"
+          okType="danger"
+          onConfirm={() => onDelete(ticket.id)}
+        >
+          <Button
+            danger
+            icon={<DeleteOutlined />}
+            loading={isDeleteLoading}
+            type="text"
+          />
+        </Popconfirm>,
       ]}
       extra={ticket.done && <span>(Done)</span>}
       title={<DayIndicator ticket={ticket} />}
