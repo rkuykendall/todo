@@ -4,6 +4,8 @@
   "scripts": {
     "format": "npm run format --workspaces",
     "lint": "npm run lint --workspaces",
+    "build": "npm run build --workspaces",
+    "check": "npm run format && npm run lint && npm run build",
     "lint:fix": "npm run lint:fix --workspaces",
     "prepare": "husky",
     "clear-draws": "curl -X DELETE http://localhost:4000/ticket_draw"
