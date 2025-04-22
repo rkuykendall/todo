@@ -21,6 +21,7 @@ interface DrawProps {
   onMarkDone: (drawId: string) => void;
   onMarkSkipped: (drawId: string) => void;
   onUndo: (drawId: string) => void;
+  index?: number;
 }
 
 const triggerConfetti = () => {
@@ -37,6 +38,7 @@ export function Draw({
   onMarkDone,
   onMarkSkipped,
   onUndo,
+  index = 0,
 }: DrawProps) {
   const { error, patchLoading } = useSelector(
     (state: RootState) => state.draws
@@ -63,6 +65,7 @@ export function Draw({
         }}
       >
         <Card
+          index={index}
           done={draw.done}
           actions={
             draw.done || draw.skipped

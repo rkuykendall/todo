@@ -16,9 +16,10 @@ interface TicketProps {
   ticket: TicketType;
   onEdit: (ticket: TicketType) => void;
   onDelete: (id: string) => void;
+  index?: number;
 }
 
-export function Ticket({ ticket, onEdit, onDelete }: TicketProps) {
+export function Ticket({ ticket, onEdit, onDelete, index = 0 }: TicketProps) {
   const { updateLoading, deleteLoading } = useSelector(
     (state: RootState) => state.tickets
   );
@@ -28,6 +29,7 @@ export function Ticket({ ticket, onEdit, onDelete }: TicketProps) {
 
   return (
     <Card
+      index={index}
       actions={[
         <Button
           icon={<EditOutlined />}

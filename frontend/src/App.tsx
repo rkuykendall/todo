@@ -116,10 +116,11 @@ function App() {
               />
             ) : (
               <Space wrap>
-                {draws.map((draw) => (
+                {draws.map((draw, index) => (
                   <Draw
                     draw={draw}
                     key={draw.id}
+                    index={index}
                     onMarkDone={markDone}
                     onMarkSkipped={markSkipped}
                     onUndo={undoDraw}
@@ -151,9 +152,10 @@ function App() {
               />
             ) : (
               <Space wrap>
-                {tickets.map((ticket) => (
+                {tickets.map((ticket, index) => (
                   <Ticket
                     key={ticket.id}
+                    index={index}
                     onDelete={(id) => dispatch(deleteTicket(id))}
                     onEdit={setEditingTicket}
                     ticket={ticket}

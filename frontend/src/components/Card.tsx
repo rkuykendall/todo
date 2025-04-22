@@ -7,9 +7,10 @@ const MotionCard = motion(AntCard);
 
 interface ExtendedCardProps extends MotionCardProps {
   done?: boolean;
+  index?: number;
 }
 
-export function Card({ done, ...props }: ExtendedCardProps) {
+export function Card({ done, index = 0, ...props }: ExtendedCardProps) {
   return (
     <MotionCard
       className={styles.card}
@@ -23,6 +24,7 @@ export function Card({ done, ...props }: ExtendedCardProps) {
         type: 'spring',
         stiffness: 400,
         damping: 25,
+        delay: index * 0.1, // Add 0.1s delay for each subsequent card
       }}
       {...props}
     />
