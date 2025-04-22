@@ -7,11 +7,13 @@ import {
   DeleteOutlined,
   ClockCircleOutlined,
   CalendarOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import { formatDate } from '../utils';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { Space, Typography, Popconfirm } from 'antd';
+import { updateTicket } from '../ticketSlice';
 
 interface TicketProps {
   ticket: TicketType;
@@ -21,6 +23,7 @@ interface TicketProps {
 }
 
 export function Ticket({ ticket, onEdit, onDelete, index = 0 }: TicketProps) {
+  const dispatch = useDispatch();
   const { updateLoading, deleteLoading } = useSelector(
     (state: RootState) => state.tickets
   );
@@ -28,10 +31,29 @@ export function Ticket({ ticket, onEdit, onDelete, index = 0 }: TicketProps) {
   const isUpdateLoading = updateLoading[ticket.id];
   const isDeleteLoading = deleteLoading[ticket.id];
 
+  const toggleDone = () => {
+    dispatch(
+      updateTicket({
+        id: ticket.id,
+        updates: {
+          done: ticket.done ? null : formatDate(new Date()),
+        },
+      })
+    );
+  };
+
   return (
     <Card
       index={index}
+      done={!!ticket.done}
       actions={[
+        <Button
+          icon={<CheckCircleOutlined />}
+          key="done"
+          loading={isUpdateLoading}
+          onClick={toggleDone}
+          type={ticket.done ? 'text' : 'link'}
+        />,
         <Button
           icon={<EditOutlined />}
           key="edit"
@@ -56,7 +78,6 @@ export function Ticket({ ticket, onEdit, onDelete, index = 0 }: TicketProps) {
           />
         </Popconfirm>,
       ]}
-      extra={ticket.done && <span>(Done)</span>}
       title={<DayIndicator ticket={ticket} />}
     >
       <Space direction="vertical">
@@ -67,16 +88,23 @@ export function Ticket({ ticket, onEdit, onDelete, index = 0 }: TicketProps) {
               <ClockCircleOutlined /> Last drawn:{' '}
               {formatDate(ticket.last_drawn)}
             </div>
-            <div>
-              <CalendarOutlined /> Frequency: {ticket.frequency}{' '}
-              {ticket.frequency === 1 ? 'day' : 'days'}
-            </div>
+            {ticket.frequency !== 1 && (
+              <div>
+                <CalendarOutlined /> Frequency: {ticket.frequency} days
+              </div>
+            )}
           </Space>
         </div>
 
         {ticket.deadline && (
           <div>
             <ClockCircleOutlined /> Deadline: {formatDate(ticket.deadline)}
+          </div>
+        )}
+
+        {ticket.done && (
+          <div>
+            <CheckCircleOutlined /> Done: {formatDate(ticket.done)}
           </div>
         )}
       </Space>

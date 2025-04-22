@@ -1,7 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Ticket as TicketType } from '@todo/shared';
-import { ConfigProvider, Typography, Space, Alert, Spin } from 'antd';
+import {
+  ConfigProvider,
+  Typography,
+  Space,
+  Alert,
+  Spin,
+  Radio,
+  Row,
+  Col,
+} from 'antd';
 import { SyncOutlined, PlusOutlined } from '@ant-design/icons';
 import { RootState, AppDispatch } from './store';
 import {
@@ -15,6 +24,8 @@ import TicketForm from './components/TicketForm';
 import Button from './components/Button';
 import Draw from './components/Draw';
 import Ticket from './components/Ticket';
+
+type TicketFilter = 'all' | 'active' | 'done';
 
 const LoadingWrapper = ({
   loading,
@@ -44,11 +55,23 @@ function App() {
   } = useSelector((state: RootState) => state.draws);
   const [editingTicket, setEditingTicket] = useState<TicketType | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [ticketFilter, setTicketFilter] = useState<TicketFilter>('active');
 
   useEffect(() => {
     dispatch(fetchTickets());
     dispatch(fetchDraws());
   }, [dispatch]);
+
+  const filteredTickets = tickets.filter((ticket) => {
+    switch (ticketFilter) {
+      case 'active':
+        return !ticket.done;
+      case 'done':
+        return !!ticket.done;
+      default:
+        return true;
+    }
+  });
 
   const markDone = (drawId: string) => {
     dispatch(patchDraw({ id: drawId, done: true, skipped: false }));
@@ -75,27 +98,34 @@ function App() {
     >
       <div style={{ maxWidth: 1064, margin: '0 auto', padding: '1rem' }}>
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          <Typography.Title level={1}>Today's Draws</Typography.Title>
+          <Row align="middle" justify="space-between">
+            <Col>
+              <Typography.Title level={1} style={{ margin: 0 }}>
+                Today's Draws
+              </Typography.Title>
+            </Col>
+            <Col>
+              <Space>
+                <Button
+                  icon={<SyncOutlined spin={createLoading} />}
+                  loading={createLoading || loadingDraws || loadingTickets}
+                  onClick={() => dispatch(createDraws())}
+                  type="primary"
+                  disabled={draws.length >= 5}
+                >
+                  Draw Tickets for Today
+                </Button>
 
-          <Space>
-            <Button
-              icon={<SyncOutlined spin={createLoading} />}
-              loading={createLoading || loadingDraws || loadingTickets}
-              onClick={() => dispatch(createDraws())}
-              type="primary"
-              disabled={draws.length >= 5}
-            >
-              Draw Tickets for Today
-            </Button>
-
-            <Button
-              icon={<PlusOutlined />}
-              loading={addLoading}
-              onClick={() => setIsAddModalOpen(true)}
-            >
-              Add Ticket
-            </Button>
-          </Space>
+                <Button
+                  icon={<PlusOutlined />}
+                  loading={addLoading}
+                  onClick={() => setIsAddModalOpen(true)}
+                >
+                  Add Ticket
+                </Button>
+              </Space>
+            </Col>
+          </Row>
 
           {drawError && (
             <Alert
@@ -131,7 +161,25 @@ function App() {
             )}
           </LoadingWrapper>
 
-          <Typography.Title level={2}>All Tickets</Typography.Title>
+          <Row align="middle" justify="space-between">
+            <Col>
+              <Typography.Title level={2} style={{ margin: 0 }}>
+                All Tickets
+              </Typography.Title>
+            </Col>
+            <Col>
+              <Radio.Group
+                value={ticketFilter}
+                onChange={(e) => setTicketFilter(e.target.value)}
+                optionType="button"
+                buttonStyle="solid"
+              >
+                <Radio.Button value="all">All</Radio.Button>
+                <Radio.Button value="active">Active</Radio.Button>
+                <Radio.Button value="done">Done</Radio.Button>
+              </Radio.Group>
+            </Col>
+          </Row>
 
           {ticketError && (
             <Alert
@@ -143,16 +191,26 @@ function App() {
           )}
 
           <LoadingWrapper loading={loadingTickets}>
-            {!loadingTickets && tickets.length === 0 ? (
+            {!loadingTickets && filteredTickets.length === 0 ? (
               <Alert
-                message="No tickets found"
-                description="Add your first ticket to get started!"
+                message={
+                  ticketFilter === 'done'
+                    ? 'No completed tickets'
+                    : ticketFilter === 'active'
+                      ? 'No active tickets'
+                      : 'No tickets found'
+                }
+                description={
+                  ticketFilter === 'all'
+                    ? 'Add your first ticket to get started!'
+                    : undefined
+                }
                 type="info"
                 showIcon
               />
             ) : (
               <Space wrap>
-                {tickets.map((ticket, index) => (
+                {filteredTickets.map((ticket, index) => (
                   <Ticket
                     key={ticket.id}
                     index={index}

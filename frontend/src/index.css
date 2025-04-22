@@ -10,3 +10,8 @@
 html {
   background-color: rgb(240, 242, 245);
 }
+
+/* Ensure confetti canvas appears above all other elements */
+canvas[style*='position: fixed'] {
+  z-index: 9999 !important;
+}

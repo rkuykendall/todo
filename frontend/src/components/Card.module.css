@@ -5,6 +5,11 @@
   flex-direction: column;
   position: relative;
   overflow: hidden;
+  z-index: 2;
+}
+
+.card:hover {
+  z-index: 3;
 }
 
 .card :global(.ant-card-body) {
@@ -14,6 +19,15 @@
 
 .card :global(.ant-card-actions) {
   margin-top: auto;
+}
+
+.card[data-done='true'] {
+  opacity: 0.8;
+  filter: grayscale(30%);
+}
+
+.card[data-done='true'] :global(.ant-typography) {
+  text-decoration: line-through;
 }
 
 .card[data-done='true']::before {

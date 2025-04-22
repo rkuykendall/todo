@@ -273,12 +273,13 @@ function selectTicketsForDraw(
 ): RawDbTicket[] {
   const today = getTodayDate();
 
-  // Get must-draw tickets first, respecting frequency
+  // Get must-draw tickets first, respecting frequency and done status
   const mustDrawTickets = db
     .prepare(
       `
       SELECT * FROM ticket 
       WHERE must_draw_${todayDay} = 1
+      AND done IS NULL
       AND (
         last_drawn IS NULL 
         OR julianday(?) - julianday(last_drawn) >= frequency
@@ -287,12 +288,13 @@ function selectTicketsForDraw(
     )
     .all(today) as RawDbTicket[];
 
-  // Get eligible can-draw tickets, respecting frequency
+  // Get eligible can-draw tickets, respecting frequency and done status
   const canDrawTickets = db
     .prepare(
       `SELECT * FROM ticket 
       WHERE can_draw_${todayDay} = 1 
       AND must_draw_${todayDay} = 0
+      AND done IS NULL
       AND (
         last_drawn IS NULL 
         OR julianday(?) - julianday(last_drawn) >= frequency
@@ -413,10 +415,40 @@ const updateTicketDraw: AsyncRequestHandler = (req, res) => {
   );
   updateStmt.run(...coercedValues, id);
 
-  if (updates.done === true) {
-    db.prepare(
-      'UPDATE ticket SET last_drawn = (CURRENT_TIMESTAMP_CT()) WHERE id = ?'
-    ).run(existing.ticket_id);
+  if (updates.done === true || updates.skipped === true) {
+    const ticket = db
+      .prepare('SELECT * FROM ticket WHERE id = ?')
+      .get(existing.ticket_id) as RawDbTicket;
+
+    if (ticket.done_on_child_done) {
+      // Get all draws for this ticket today
+      const allDrawsToday = db
+        .prepare(
+          `SELECT * FROM ticket_draw 
+           WHERE ticket_id = ? 
+           AND DATE(datetime(created_at, 'localtime')) = DATE('now', 'localtime')`
+        )
+        .all(existing.ticket_id) as RawDbDraw[];
+
+      // Check if all draws are either done or skipped
+      const allCompleted = allDrawsToday.every(
+        (draw) => draw.done || draw.skipped
+      );
+
+      if (allCompleted) {
+        // Mark the ticket as done
+        db.prepare(
+          'UPDATE ticket SET done = datetime("now", "localtime") WHERE id = ?'
+        ).run(existing.ticket_id);
+      }
+    }
+
+    // Update last_drawn timestamp only when marked as done
+    if (updates.done === true) {
+      db.prepare(
+        'UPDATE ticket SET last_drawn = datetime("now", "localtime") WHERE id = ?'
+      ).run(existing.ticket_id);
+    }
   }
 
   const updated = db
