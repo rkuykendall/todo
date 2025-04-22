@@ -1,4 +1,5 @@
 import express from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
 import db from './db/index.ts';
@@ -10,6 +11,12 @@ import { PatchTicketDrawSchema, type TicketDraw } from './types/ticket_draw.ts';
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+type AsyncRequestHandler = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => Promise<void> | void;
 
 // Raw database types with numbers instead of booleans
 type RawDbTicket = {
@@ -101,24 +108,30 @@ function denormalizeTicket(input: Partial<Ticket>): Record<string, unknown> {
   return result;
 }
 
-app.get('/tickets', (_req, res) => {
+const getTickets: AsyncRequestHandler = (_req, res) => {
   const raw = db.prepare('SELECT * FROM ticket').all() as RawDbTicket[];
   const normalized = raw.map(normalizeTicket);
   res.json(normalized);
-});
+  return;
+};
 
-app.get('/tickets/:id', (req, res) => {
+const getTicketById: AsyncRequestHandler = (req, res) => {
   const ticket = db
     .prepare('SELECT * FROM ticket WHERE id = ?')
     .get(req.params.id) as RawDbTicket | undefined;
-  if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+  if (!ticket) {
+    res.status(404).json({ error: 'Ticket not found' });
+    return;
+  }
   res.json(normalizeTicket(ticket));
-});
+  return;
+};
 
-app.post('/tickets', (req, res) => {
+const createTicket: AsyncRequestHandler = (req, res) => {
   const result = NewTicketSchema.safeParse(req.body);
   if (!result.success) {
-    return res.status(400).json({ error: result.error.flatten() });
+    res.status(400).json({ error: result.error.flatten() });
+    return;
   }
 
   const data = result.data;
@@ -153,25 +166,31 @@ app.post('/tickets', (req, res) => {
   db.prepare(statement).run(...values);
 
   res.status(201).json({ id });
-});
+  return;
+};
 
-app.put('/tickets/:id', (req, res) => {
+const updateTicket: AsyncRequestHandler = (req, res) => {
   const { id } = req.params;
   const existing = db.prepare('SELECT * FROM ticket WHERE id = ?').get(id) as
     | RawDbTicket
     | undefined;
-  if (!existing) return res.status(404).json({ error: 'Ticket not found' });
+  if (!existing) {
+    res.status(404).json({ error: 'Ticket not found' });
+    return;
+  }
 
   const result = UpdateTicketSchema.safeParse(req.body);
   if (!result.success) {
-    return res.status(400).json({ error: result.error.flatten() });
+    res.status(400).json({ error: result.error.flatten() });
+    return;
   }
 
   const updates = denormalizeTicket(result.data);
 
   const updateKeys = Object.keys(updates);
   if (updateKeys.length === 0) {
-    return res.status(400).json({ error: 'No valid fields to update' });
+    res.status(400).json({ error: 'No valid fields to update' });
+    return;
   }
 
   const setClause = updateKeys.map((key) => `${key} = ?`).join(', ');
@@ -182,20 +201,19 @@ app.put('/tickets/:id', (req, res) => {
     .prepare('SELECT * FROM ticket WHERE id = ?')
     .get(id) as RawDbTicket;
   res.json(normalizeTicket(updated));
-});
+  return;
+};
 
-app.delete('/tickets/:id', (req, res) => {
+const deleteTicket: AsyncRequestHandler = (req, res) => {
   const { id } = req.params;
   const result = db.prepare('DELETE FROM ticket WHERE id = ?').run(id);
-  if (result.changes === 0)
-    return res.status(404).json({ error: 'Ticket not found' });
+  if (result.changes === 0) {
+    res.status(404).json({ error: 'Ticket not found' });
+    return;
+  }
   res.json({ deleted: true });
-});
-
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+  return;
+};
 
 // Utility: Get today's lowercase day name (e.g., "wednesday")
 function getTodayDayString(): string {
@@ -209,7 +227,7 @@ function getTodayDate(): string {
   return formatDateISO(new Date());
 }
 
-app.get('/ticket_draw', (_req, res) => {
+const getTicketDraw: AsyncRequestHandler = (_req, res) => {
   const today = getTodayDate();
 
   const draws = db
@@ -217,9 +235,10 @@ app.get('/ticket_draw', (_req, res) => {
     .all(today) as RawDbDraw[];
 
   res.json(draws.map(normalizeDraw));
-});
+  return;
+};
 
-app.post('/ticket_draw', (_req, res) => {
+const createTicketDraw: AsyncRequestHandler = (_req, res) => {
   const today = getTodayDate();
   const todayDay = getTodayDayString();
 
@@ -277,26 +296,30 @@ app.post('/ticket_draw', (_req, res) => {
     .all(today) as RawDbDraw[];
 
   res.status(201).json(todaysDraws.map(normalizeDraw));
-});
+  return;
+};
 
-app.patch('/ticket_draw/:id', (req, res) => {
+const updateTicketDraw: AsyncRequestHandler = (req, res) => {
   const { id } = req.params;
 
   const parse = PatchTicketDrawSchema.safeParse(req.body);
   if (!parse.success) {
-    return res.status(400).json({ error: parse.error.flatten() });
+    res.status(400).json({ error: parse.error.flatten() });
+    return;
   }
 
   const updates = parse.data;
   if (Object.keys(updates).length === 0) {
-    return res.status(400).json({ error: 'No valid fields to update.' });
+    res.status(400).json({ error: 'No valid fields to update.' });
+    return;
   }
 
   const existing = db
     .prepare('SELECT * FROM ticket_draw WHERE id = ?')
     .get(id) as RawDbDraw | undefined;
   if (!existing) {
-    return res.status(404).json({ error: 'ticket_draw not found.' });
+    res.status(404).json({ error: 'ticket_draw not found.' });
+    return;
   }
 
   const setClause = Object.keys(updates)
@@ -320,4 +343,19 @@ app.patch('/ticket_draw/:id', (req, res) => {
     .prepare('SELECT * FROM ticket_draw WHERE id = ?')
     .get(id) as RawDbDraw;
   res.json(normalizeDraw(updated));
+  return;
+};
+
+app.get('/tickets', getTickets);
+app.get('/tickets/:id', getTicketById);
+app.post('/tickets', createTicket);
+app.put('/tickets/:id', updateTicket);
+app.delete('/tickets/:id', deleteTicket);
+app.get('/ticket_draw', getTicketDraw);
+app.post('/ticket_draw', createTicketDraw);
+app.patch('/ticket_draw/:id', updateTicketDraw);
+
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
