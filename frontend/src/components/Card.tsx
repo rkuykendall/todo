@@ -17,14 +17,31 @@ export function Card({ done, index = 0, ...props }: ExtendedCardProps) {
       hoverable
       variant="borderless"
       data-done={done}
-      initial={{ scale: 0.95, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      whileHover={{ scale: 1.02 }}
+      initial={{
+        y: -1000,
+        x: -100,
+        rotate: -15,
+        scale: 0.8,
+        opacity: 0,
+      }}
+      animate={{
+        y: 0,
+        x: 0,
+        rotate: 0,
+        scale: 1,
+        opacity: 1,
+      }}
+      whileHover={{
+        scale: 1.02,
+        rotate: 1.5,
+        transition: { duration: 0.2 },
+      }}
       transition={{
         type: 'spring',
-        stiffness: 400,
-        damping: 25,
-        delay: index * 0.1, // Add 0.1s delay for each subsequent card
+        damping: 100,
+        stiffness: 800,
+        delay: index * 0.05,
+        mass: 0.3,
       }}
       {...props}
     />
