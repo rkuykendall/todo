@@ -1,17 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { Ticket as TicketType } from '@todo/shared';
-import {
-  ConfigProvider,
-  Typography,
-  Space,
-  Alert,
-  Spin,
-  Radio,
-  Row,
-  Col,
-} from 'antd';
+import { ConfigProvider, Typography, Alert, Spin, Radio } from 'antd';
 import { SyncOutlined, PlusOutlined } from '@ant-design/icons';
+import useBreakpoint from 'antd/es/grid/hooks/useBreakpoint';
 import type { RootState, AppDispatch } from './store';
 import {
   fetchTickets,
@@ -22,10 +14,12 @@ import {
 import { fetchDraws, patchDraw, createDraws } from './drawSlice';
 import TicketForm from './components/TicketForm';
 import Button from './components/Button';
+import Space from './components/Space';
 import { TicketCard } from './components/Ticket';
 import { DrawCard } from './components/Draw';
 import Login from './components/Login';
 import { API_DOMAIN } from './utils';
+import Header from './components/Header';
 
 type TicketFilter = 'tasks' | 'recurring' | 'done';
 
@@ -64,6 +58,7 @@ function App() {
     localStorage.getItem(TOKEN_KEY)
   );
   const [loginError, setLoginError] = useState<string>();
+  const screens = useBreakpoint();
 
   const handleLogin = async (password: string) => {
     setLoginError(undefined);
@@ -165,23 +160,38 @@ function App() {
           colorError: '#f05252',
           colorWarning: '#f6c542',
         },
+        components: {
+          Button: {
+            borderRadius: 6,
+            controlHeight: !screens.sm ? 40 : 32,
+            fontSize: !screens.sm ? 16 : 14,
+            paddingInline: !screens.sm ? 16 : 15,
+          },
+        },
       }}
     >
-      <div style={{ maxWidth: 1064, margin: '0 auto', padding: '1rem' }}>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          <Row align="middle" justify="space-between">
-            <Col>
+      <div
+        style={{
+          maxWidth: 1064,
+          margin: '0 auto',
+          padding: '1rem',
+          width: '100%',
+        }}
+      >
+        <Space direction="vertical" size={screens.sm ? 64 : 24} block>
+          <Header
+            title={
               <Typography.Title level={1} style={{ margin: 0 }}>
                 Today's Draws
               </Typography.Title>
-            </Col>
-            <Col>
-              <Space>
-                <Button onClick={handleLogout} type="text">
+            }
+            actions={
+              <Space desktop block={!screens.sm}>
+                <Button block={!screens.sm} onClick={handleLogout} type="text">
                   Logout
                 </Button>
-
                 <Button
+                  block={!screens.sm}
                   icon={<SyncOutlined spin={createLoading} />}
                   loading={createLoading || loadingDraws || loadingTickets}
                   onClick={() => dispatch(createDraws())}
@@ -190,17 +200,18 @@ function App() {
                 >
                   Draw Tickets for Today
                 </Button>
-
                 <Button
+                  block={!screens.sm}
                   icon={<PlusOutlined />}
                   loading={addLoading}
                   onClick={() => setIsAddModalOpen(true)}
+                  type="primary"
                 >
                   Add Ticket
                 </Button>
               </Space>
-            </Col>
-          </Row>
+            }
+          />
 
           {drawError && (
             <Alert
@@ -220,7 +231,12 @@ function App() {
                 showIcon
               />
             ) : (
-              <Space wrap>
+              <Space
+                wrap={screens.sm}
+                direction={screens.sm ? 'horizontal' : 'vertical'}
+                block={!screens.sm}
+                desktop
+              >
                 {draws.map((draw, index) => (
                   <DrawCard
                     draw={draw}
@@ -236,13 +252,13 @@ function App() {
             )}
           </LoadingWrapper>
 
-          <Row align="middle" justify="space-between">
-            <Col>
+          <Header
+            title={
               <Typography.Title level={2} style={{ margin: 0 }}>
                 All Tickets
               </Typography.Title>
-            </Col>
-            <Col>
+            }
+            actions={
               <Radio.Group
                 value={ticketFilter}
                 onChange={(e) => setTicketFilter(e.target.value)}
@@ -253,8 +269,8 @@ function App() {
                 <Radio.Button value="recurring">Recurring</Radio.Button>
                 <Radio.Button value="done">Done</Radio.Button>
               </Radio.Group>
-            </Col>
-          </Row>
+            }
+          />
 
           {ticketError && (
             <Alert
@@ -280,7 +296,11 @@ function App() {
                 showIcon
               />
             ) : (
-              <Space wrap>
+              <Space
+                wrap={screens.sm}
+                direction={screens.sm ? 'horizontal' : 'vertical'}
+                style={{ width: '100%' }}
+              >
                 {filteredTickets.map((ticket, index) => (
                   <TicketCard
                     key={ticket.id}

@@ -86,37 +86,34 @@ export const TicketCard = ({
       ]}
       title={<DayIndicator ticket={ticket} />}
     >
-      <Space direction="vertical">
+      <div>
+        <Typography.Title level={5}>{ticket.title}</Typography.Title>
+        <Space direction="vertical" size={2}>
+          <div>
+            <ClockCircleOutlined /> Last drawn: {formatDate(ticket.last_drawn)}
+          </div>
+          <div>
+            <HistoryOutlined /> Created: {formatAge(ticket.created_at)}
+          </div>
+          {ticket.frequency !== 1 && (
+            <div>
+              <CalendarOutlined /> Frequency: {ticket.frequency} days
+            </div>
+          )}
+        </Space>
+      </div>
+
+      {ticket.deadline && (
         <div>
-          <Typography.Title level={5}>{ticket.title}</Typography.Title>
-          <Space direction="vertical" size={2}>
-            <div>
-              <ClockCircleOutlined /> Last drawn:{' '}
-              {formatDate(ticket.last_drawn)}
-            </div>
-            <div>
-              <HistoryOutlined /> Created: {formatAge(ticket.created_at)}
-            </div>
-            {ticket.frequency !== 1 && (
-              <div>
-                <CalendarOutlined /> Frequency: {ticket.frequency} days
-              </div>
-            )}
-          </Space>
+          <ClockCircleOutlined /> Deadline: {formatDate(ticket.deadline)}
         </div>
+      )}
 
-        {ticket.deadline && (
-          <div>
-            <ClockCircleOutlined /> Deadline: {formatDate(ticket.deadline)}
-          </div>
-        )}
-
-        {ticket.done && (
-          <div>
-            <CheckCircleOutlined /> Done: {formatDate(ticket.done)}
-          </div>
-        )}
-      </Space>
+      {ticket.done && (
+        <div>
+          <CheckCircleOutlined /> Done: {formatDate(ticket.done)}
+        </div>
+      )}
     </Card>
   );
 };

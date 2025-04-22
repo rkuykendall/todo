@@ -2,23 +2,35 @@ import { Card as AntCard } from 'antd';
 import type { CardProps } from 'antd';
 import { motion } from 'framer-motion';
 import type { MotionProps } from 'framer-motion';
+import useBreakpoint from 'antd/es/grid/hooks/useBreakpoint';
 import styles from './Card.module.css';
 
 type MotionCardProps = Omit<CardProps, keyof MotionProps> & MotionProps;
-const MotionCard = motion(AntCard);
+const MotionCard: React.ComponentType<MotionCardProps> = motion(AntCard);
 
-interface ExtendedCardProps extends MotionCardProps {
+interface ExtendedCardProps
+  extends Pick<CardProps, 'actions' | 'title' | 'children'> {
   done?: boolean;
   index?: number;
 }
 
 export function Card({ done, index = 0, ...props }: ExtendedCardProps) {
+  const screens = useBreakpoint();
+
+  const shared = {
+    className: styles.card,
+    variant: 'borderless' as const,
+    dataDone: done,
+  };
+
+  if (!screens.sm) {
+    return <AntCard {...shared} {...props} />;
+  }
+
   return (
     <MotionCard
-      className={styles.card}
+      {...shared}
       hoverable
-      variant="borderless"
-      data-done={done}
       initial={{
         y: 500,
         x: 200,
