@@ -9,6 +9,8 @@ services:
       - /volume1/docker/todo:/data
     ports:
       - '4000:4000'
+    environment:
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-default-password}
     command: |
       bash -c '
       main() {

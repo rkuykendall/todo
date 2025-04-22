@@ -24,8 +24,12 @@ import TicketForm from './components/TicketForm';
 import Button from './components/Button';
 import { TicketCard } from './components/Ticket';
 import { DrawCard } from './components/Draw';
+import Login from './components/Login';
+import { API_DOMAIN } from './utils';
 
 type TicketFilter = 'tasks' | 'recurring' | 'done';
+
+const TOKEN_KEY = 'todoAppToken';
 
 const LoadingWrapper = ({
   loading,
@@ -56,11 +60,76 @@ function App() {
   const [editingTicket, setEditingTicket] = useState<TicketType | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [ticketFilter, setTicketFilter] = useState<TicketFilter>('tasks');
+  const [token, setToken] = useState<string | null>(
+    localStorage.getItem(TOKEN_KEY)
+  );
+  const [loginError, setLoginError] = useState<string>();
 
+  const handleLogin = async (password: string) => {
+    setLoginError(undefined);
+    try {
+      // Test the password by making a request
+      const response = await fetch(`${API_DOMAIN}/tickets`, {
+        headers: {
+          Authorization: `Bearer ${password}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Invalid password');
+      }
+
+      // If we get here, the password worked
+      localStorage.setItem(TOKEN_KEY, password);
+      setToken(password);
+    } catch (error) {
+      setLoginError('Invalid password');
+      throw error;
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem(TOKEN_KEY);
+    setToken(null);
+  };
+
+  // Setup authorization header for all API requests
   useEffect(() => {
-    dispatch(fetchTickets());
-    dispatch(fetchDraws());
-  }, [dispatch]);
+    const originalFetch = window.fetch;
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (typeof input === 'string' && input.includes(API_DOMAIN)) {
+        const headers = new Headers(init?.headers || {});
+        if (token) {
+          headers.set('Authorization', `Bearer ${token}`);
+        }
+        init = {
+          ...init,
+          headers,
+        };
+      }
+      const response = await originalFetch(input, init);
+      if (response.status === 401) {
+        handleLogout();
+      }
+      return response;
+    };
+
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, [token]);
+
+  // Load initial data when logged in
+  useEffect(() => {
+    if (token) {
+      dispatch(fetchTickets());
+      dispatch(fetchDraws());
+    }
+  }, [dispatch, token]);
+
+  if (!token) {
+    return <Login onLogin={handleLogin} error={loginError} />;
+  }
 
   const filteredTickets = tickets.filter((ticket) => {
     switch (ticketFilter) {
@@ -108,6 +177,10 @@ function App() {
             </Col>
             <Col>
               <Space>
+                <Button onClick={handleLogout} type="text">
+                  Logout
+                </Button>
+
                 <Button
                   icon={<SyncOutlined spin={createLoading} />}
                   loading={createLoading || loadingDraws || loadingTickets}

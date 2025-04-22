@@ -12,6 +12,36 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Add basic authentication
+const AUTH_PASSWORD = process.env.AUTH_PASSWORD || 'default-password';
+
+function basicAuth(req: Request, res: Response, next: NextFunction) {
+  // Skip auth for OPTIONS requests (CORS preflight)
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const token = authHeader.split(' ')[1];
+  const passwordToCheck = token.trim();
+
+  if (passwordToCheck !== AUTH_PASSWORD) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  next();
+}
+
+// Apply authentication to all routes
+app.use(basicAuth);
+
 type AsyncRequestHandler = (
   req: Request,
   res: Response,
