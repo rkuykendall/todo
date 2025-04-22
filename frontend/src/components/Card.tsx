@@ -40,7 +40,7 @@ export function Card({ done, index = 0, ...props }: ExtendedCardProps) {
         type: 'spring',
         damping: 20,
         stiffness: 400,
-        delay: 0.2 + index * 0.05,
+        delay: 0.1 + index * 0.05,
         mass: 0.5,
       }}
       {...props}

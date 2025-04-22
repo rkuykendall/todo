@@ -26,10 +26,6 @@
   filter: grayscale(30%);
 }
 
-.card[data-done='true'] :global(.ant-typography) {
-  text-decoration: line-through;
-}
-
 .card[data-done='true']::before {
   content: '';
   position: absolute;

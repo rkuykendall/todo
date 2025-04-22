@@ -438,7 +438,7 @@ const updateTicketDraw: AsyncRequestHandler = (req, res) => {
       if (allCompleted) {
         // Mark the ticket as done
         db.prepare(
-          'UPDATE ticket SET done = datetime("now", "localtime") WHERE id = ?'
+          "UPDATE ticket SET done = datetime('now', 'localtime') WHERE id = ?"
         ).run(existing.ticket_id);
       }
     }
@@ -446,7 +446,7 @@ const updateTicketDraw: AsyncRequestHandler = (req, res) => {
     // Update last_drawn timestamp only when marked as done
     if (updates.done === true) {
       db.prepare(
-        'UPDATE ticket SET last_drawn = datetime("now", "localtime") WHERE id = ?'
+        "UPDATE ticket SET last_drawn = datetime('now', 'localtime') WHERE id = ?"
       ).run(existing.ticket_id);
     }
   }

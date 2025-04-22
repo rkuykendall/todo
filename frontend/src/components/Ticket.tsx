@@ -11,7 +11,7 @@ import {
 } from '@ant-design/icons';
 import { formatDate } from '../utils';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState } from '../store';
+import { RootState, AppDispatch } from '../store';
 import { Space, Typography, Popconfirm } from 'antd';
 import { updateTicket } from '../ticketSlice';
 
@@ -23,7 +23,7 @@ interface TicketProps {
 }
 
 export function Ticket({ ticket, onEdit, onDelete, index = 0 }: TicketProps) {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const { updateLoading, deleteLoading } = useSelector(
     (state: RootState) => state.tickets
   );
@@ -36,7 +36,7 @@ export function Ticket({ ticket, onEdit, onDelete, index = 0 }: TicketProps) {
       updateTicket({
         id: ticket.id,
         updates: {
-          done: ticket.done ? null : formatDate(new Date()),
+          done: ticket.done ? null : new Date().toISOString(),
         },
       })
     );
@@ -48,18 +48,18 @@ export function Ticket({ ticket, onEdit, onDelete, index = 0 }: TicketProps) {
       done={!!ticket.done}
       actions={[
         <Button
-          icon={<CheckCircleOutlined />}
-          key="done"
-          loading={isUpdateLoading}
-          onClick={toggleDone}
-          type={ticket.done ? 'text' : 'link'}
-        />,
-        <Button
           icon={<EditOutlined />}
           key="edit"
           loading={isUpdateLoading}
           onClick={() => onEdit(ticket)}
           type="text"
+        />,
+        <Button
+          icon={<CheckCircleOutlined />}
+          key="done"
+          loading={isUpdateLoading}
+          onClick={toggleDone}
+          type={ticket.done ? 'text' : 'link'}
         />,
         <Popconfirm
           key="delete"
