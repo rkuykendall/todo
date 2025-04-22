@@ -7,6 +7,7 @@ export const NewTicketSchema = z.object({
   done: z.string().datetime().optional().nullable(),
   last_drawn: z.string().datetime().optional().nullable(),
   deadline: z.string().datetime().optional().nullable(),
+  frequency: z.number().int().min(1).default(1),
 
   ...Object.fromEntries(
     dayFields.flatMap((day) => [

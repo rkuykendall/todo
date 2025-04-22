@@ -6,6 +6,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   ClockCircleOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 import { formatDate } from '../utils';
 import { useSelector } from 'react-redux';
@@ -61,7 +62,16 @@ export function Ticket({ ticket, onEdit, onDelete, index = 0 }: TicketProps) {
       <Space direction="vertical">
         <div>
           <Typography.Title level={5}>{ticket.title}</Typography.Title>
-          <div>Last drawn: {formatDate(ticket.last_drawn)}</div>
+          <Space direction="vertical" size={2}>
+            <div>
+              <ClockCircleOutlined /> Last drawn:{' '}
+              {formatDate(ticket.last_drawn)}
+            </div>
+            <div>
+              <CalendarOutlined /> Frequency: {ticket.frequency}{' '}
+              {ticket.frequency === 1 ? 'day' : 'days'}
+            </div>
+          </Space>
         </div>
 
         {ticket.deadline && (

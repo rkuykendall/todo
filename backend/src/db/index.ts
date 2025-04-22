@@ -23,6 +23,7 @@ db.exec(`
     done DATETIME,
     last_drawn DATETIME,
     deadline DATETIME,
+    frequency INTEGER DEFAULT 1,
 
     can_draw_monday BOOLEAN DEFAULT 1,
     must_draw_monday BOOLEAN DEFAULT 1,

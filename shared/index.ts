@@ -17,6 +17,7 @@ export interface Ticket {
   done: string | null;
   last_drawn: string | null;
   deadline: string | null;
+  frequency: number;
 
   can_draw_monday: boolean;
   must_draw_monday: boolean;

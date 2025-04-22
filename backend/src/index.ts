@@ -27,6 +27,7 @@ type RawDbTicket = {
   done: string | null;
   last_drawn: string | null;
   deadline: string | null;
+  frequency: number;
 } & Record<`can_draw_${Day}` | `must_draw_${Day}`, number>;
 
 interface RawDbDraw {
@@ -59,6 +60,7 @@ function normalizeTicket(ticket: RawDbTicket): Ticket {
     done: ticket.done,
     last_drawn: ticket.last_drawn,
     deadline: ticket.deadline,
+    frequency: ticket.frequency ?? 1,
     ...dayFieldValues,
   };
 }
@@ -82,6 +84,7 @@ function denormalizeTicket(input: Partial<Ticket>): Record<string, unknown> {
     'done',
     'last_drawn',
     'deadline',
+    'frequency',
   ];
   for (const field of nonBoolFields) {
     if (field in input) {
@@ -144,6 +147,7 @@ const createTicket: AsyncRequestHandler = (req, res) => {
     'done',
     'last_drawn',
     'deadline',
+    'frequency',
     ...dayFields.flatMap((day) => [`can_draw_${day}`, `must_draw_${day}`]),
   ];
 
@@ -154,6 +158,7 @@ const createTicket: AsyncRequestHandler = (req, res) => {
     data.done ?? null,
     data.last_drawn ?? null,
     data.deadline ?? null,
+    data.frequency ?? 1,
     ...dayFields.flatMap((day) => [
       Number(!!data[`can_draw_${day}` as keyof typeof data]),
       Number(!!data[`must_draw_${day}` as keyof typeof data]),
@@ -266,17 +271,34 @@ function selectTicketsForDraw(
   todayDay: string,
   existingTicketIds: Set<string>
 ): RawDbTicket[] {
-  // Get must-draw tickets first
-  const mustDrawTickets = db
-    .prepare(`SELECT * FROM ticket WHERE must_draw_${todayDay} = 1`)
-    .all() as RawDbTicket[];
+  const today = getTodayDate();
 
-  // Get eligible can-draw tickets
+  // Get must-draw tickets first, respecting frequency
+  const mustDrawTickets = db
+    .prepare(
+      `
+      SELECT * FROM ticket 
+      WHERE must_draw_${todayDay} = 1
+      AND (
+        last_drawn IS NULL 
+        OR julianday(?) - julianday(last_drawn) >= frequency
+      )
+    `
+    )
+    .all(today) as RawDbTicket[];
+
+  // Get eligible can-draw tickets, respecting frequency
   const canDrawTickets = db
     .prepare(
-      `SELECT * FROM ticket WHERE can_draw_${todayDay} = 1 AND must_draw_${todayDay} = 0`
+      `SELECT * FROM ticket 
+      WHERE can_draw_${todayDay} = 1 
+      AND must_draw_${todayDay} = 0
+      AND (
+        last_drawn IS NULL 
+        OR julianday(?) - julianday(last_drawn) >= frequency
+      )`
     )
-    .all() as RawDbTicket[];
+    .all(today) as RawDbTicket[];
 
   // Filter out tickets that already have draws
   const selectedTickets = [...mustDrawTickets];
@@ -404,6 +426,12 @@ const updateTicketDraw: AsyncRequestHandler = (req, res) => {
   return;
 };
 
+const deleteAllDraws: AsyncRequestHandler = (_req, res) => {
+  const result = db.prepare('DELETE FROM ticket_draw').run();
+  res.json({ deleted: true, count: result.changes });
+  return;
+};
+
 app.get('/tickets', getTickets);
 app.get('/tickets/:id', getTicketById);
 app.post('/tickets', createTicket);
@@ -412,6 +440,7 @@ app.delete('/tickets/:id', deleteTicket);
 app.get('/ticket_draw', getTicketDraw);
 app.post('/ticket_draw', createTicketDraw);
 app.patch('/ticket_draw/:id', updateTicketDraw);
+app.delete('/ticket_draw', deleteAllDraws);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {

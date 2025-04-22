@@ -1,6 +1,15 @@
 import { Ticket, dayFields, formatDateISO } from '@todo/shared';
-import { useEffect, useRef } from 'react';
-import { Form, Input, Checkbox, Space, Modal, Switch, DatePicker } from 'antd';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Form,
+  Input,
+  Checkbox,
+  Space,
+  Modal,
+  Switch,
+  DatePicker,
+  Radio,
+} from 'antd';
 import type { InputRef } from 'antd';
 import Button from './Button';
 
@@ -12,7 +21,7 @@ interface TicketFormProps {
   onCancel: () => void;
 }
 
-type FormValues = Pick<Ticket, 'title' | 'done_on_child_done'> & {
+type FormValues = Pick<Ticket, 'title' | 'done_on_child_done' | 'frequency'> & {
   deadline: string | null;
 } & {
   [P in
@@ -24,6 +33,7 @@ const emptyValues: FormValues = {
   title: '',
   done_on_child_done: true,
   deadline: null,
+  frequency: 1,
   ...Object.fromEntries(
     dayFields.flatMap((day) => [
       [`can_draw_${day}`, dayFields.slice(0, 5).includes(day)],
@@ -46,6 +56,7 @@ function TicketForm({
 }: TicketFormProps) {
   const [form] = Form.useForm<FormValues>();
   const titleInputRef = useRef<InputRef>(null);
+  const [customFrequency, setCustomFrequency] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -54,6 +65,7 @@ function TicketForm({
         done_on_child_done:
           initialValues.done_on_child_done ?? emptyValues.done_on_child_done,
         deadline: initialValues.deadline || null,
+        frequency: initialValues.frequency ?? emptyValues.frequency,
         ...Object.fromEntries(
           dayFields.flatMap((day) => [
             [
@@ -122,6 +134,46 @@ function TicketForm({
           label="Done when child is done"
         >
           <Switch title="Done when all draws are done" />
+        </Form.Item>
+
+        <Form.Item
+          label="Frequency"
+          name="frequency"
+          rules={[
+            { required: true, message: 'Please select or enter a frequency' },
+          ]}
+        >
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Radio.Group
+              onChange={(e) => {
+                const value = e.target.value;
+                setCustomFrequency(value === 'custom');
+                if (value !== 'custom') {
+                  form.setFieldsValue({ frequency: value });
+                }
+              }}
+              defaultValue={1}
+              optionType="button"
+              buttonStyle="solid"
+              options={[
+                { label: 'Daily', value: 1 },
+                { label: 'Weekly', value: 7 },
+                { label: 'Monthly', value: 30 },
+                { label: 'Annual', value: 365 },
+                { label: 'Custom', value: 'custom' },
+              ]}
+            />
+            {customFrequency && (
+              <Input
+                type="number"
+                min={1}
+                placeholder="Enter custom frequency in days"
+                onChange={(e) =>
+                  form.setFieldsValue({ frequency: Number(e.target.value) })
+                }
+              />
+            )}
+          </Space>
         </Form.Item>
 
         <Form.Item label="Can draw on">
