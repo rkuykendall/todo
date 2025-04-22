@@ -1,5 +1,5 @@
-import { Ticket } from '@todo/shared';
-import { TicketDraw } from '../drawSlice';
+import type { Ticket } from '@todo/shared';
+import type { TicketDraw } from '../drawSlice';
 import Button from './Button';
 import Card from './Card';
 import ColorIcon from './ColorIcon';
@@ -11,11 +11,11 @@ import {
   HourglassOutlined,
 } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
-import { RootState } from '../store';
+import type { RootState } from '../store';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 
-interface DrawProps {
+interface DrawCardProps {
   draw: TicketDraw;
   ticket?: Ticket;
   onMarkDone: (drawId: string) => void;
@@ -63,14 +63,14 @@ const triggerConfetti = () => {
   });
 };
 
-export function Draw({
+export function DrawCard({
   draw,
   ticket,
   onMarkDone,
   onMarkSkipped,
   onUndo,
   index = 0,
-}: DrawProps) {
+}: DrawCardProps) {
   const { error, patchLoading } = useSelector(
     (state: RootState) => state.draws
   );
@@ -169,4 +169,4 @@ export function Draw({
   );
 }
 
-export default Draw;
+export default DrawCard;

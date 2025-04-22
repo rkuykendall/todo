@@ -316,7 +316,10 @@ function selectTicketsForDraw(
     selectedTickets.length + existingTicketIds.size < 5 &&
     remainingCanDraw.length > 0
   ) {
-    selectedTickets.push(remainingCanDraw.shift());
+    const nextTicket = remainingCanDraw.shift();
+    if (nextTicket) {
+      selectedTickets.push(nextTicket);
+    }
   }
 
   return selectedTickets;

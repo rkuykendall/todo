@@ -1,4 +1,4 @@
-import { Ticket as TicketType } from '@todo/shared';
+import type { Ticket } from '@todo/shared';
 import Button from './Button';
 import Card from './Card';
 import DayIndicator from './DayIndicator';
@@ -12,18 +12,23 @@ import {
 } from '@ant-design/icons';
 import { formatDate, formatAge } from '../utils';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState, AppDispatch } from '../store';
+import type { RootState, AppDispatch } from '../store';
 import { Space, Typography, Popconfirm } from 'antd';
 import { updateTicket } from '../ticketSlice';
 
-interface TicketProps {
-  ticket: TicketType;
-  onEdit: (ticket: TicketType) => void;
+interface TicketCardProps {
+  ticket: Ticket;
+  onEdit: (ticket: Ticket) => void;
   onDelete: (id: string) => void;
   index?: number;
 }
 
-export function Ticket({ ticket, onEdit, onDelete, index = 0 }: TicketProps) {
+export const TicketCard = ({
+  ticket,
+  onEdit,
+  onDelete,
+  index = 0,
+}: TicketCardProps) => {
   const dispatch = useDispatch<AppDispatch>();
   const { updateLoading, deleteLoading } = useSelector(
     (state: RootState) => state.tickets
@@ -114,6 +119,4 @@ export function Ticket({ ticket, onEdit, onDelete, index = 0 }: TicketProps) {
       </Space>
     </Card>
   );
-}
-
-export default Ticket;
+};

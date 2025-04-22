@@ -3,7 +3,6 @@
     "target": "ES2022",
     "module": "ESNext",
     "lib": ["ES2022", "DOM"],
-    "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "strict": true,
@@ -14,6 +13,7 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "forceConsistentCasingInFileNames": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "verbatimModuleSyntax": true
   }
 }

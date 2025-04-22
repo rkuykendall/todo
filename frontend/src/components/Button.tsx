@@ -1,4 +1,5 @@
-import { Button as AntButton, ButtonProps } from 'antd';
+import { Button as AntButton } from 'antd';
+import type { ButtonProps } from 'antd';
 
 export function Button(props: ButtonProps) {
   return <AntButton {...props} />;

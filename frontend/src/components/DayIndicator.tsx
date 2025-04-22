@@ -1,7 +1,8 @@
-import { ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { Space, Tooltip } from 'antd';
 import { SunOutlined, CoffeeOutlined } from '@ant-design/icons';
-import { Day, dayFields } from '@todo/shared';
+import type { Day } from '@todo/shared';
+import { dayFields } from '@todo/shared';
 import ColorIcon from './ColorIcon';
 
 interface DayIndicatorProps {

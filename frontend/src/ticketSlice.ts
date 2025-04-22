@@ -1,5 +1,6 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { Ticket } from '@todo/shared';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import type { PayloadAction } from '@reduxjs/toolkit';
+import type { Ticket } from '@todo/shared';
 import { API_DOMAIN } from './utils';
 
 interface TicketState {

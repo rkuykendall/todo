@@ -1,10 +1,10 @@
 {
+  "extends": "../tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true,
-    "target": "esnext",
     "module": "nodenext",
+    "moduleResolution": "nodenext",
     "rewriteRelativeImportExtensions": true,
-    "erasableSyntaxOnly": true,
-    "verbatimModuleSyntax": true
-  }
+    "erasableSyntaxOnly": true
+  },
+  "include": ["src/**/*.ts"]
 }

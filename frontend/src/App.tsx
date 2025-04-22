@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Ticket as TicketType } from '@todo/shared';
+import type { Ticket as TicketType } from '@todo/shared';
 import {
   ConfigProvider,
   Typography,
@@ -12,7 +12,7 @@ import {
   Col,
 } from 'antd';
 import { SyncOutlined, PlusOutlined } from '@ant-design/icons';
-import { RootState, AppDispatch } from './store';
+import type { RootState, AppDispatch } from './store';
 import {
   fetchTickets,
   addTicket,
@@ -22,8 +22,8 @@ import {
 import { fetchDraws, patchDraw, createDraws } from './drawSlice';
 import TicketForm from './components/TicketForm';
 import Button from './components/Button';
-import Draw from './components/Draw';
-import Ticket from './components/Ticket';
+import { TicketCard } from './components/Ticket';
+import { DrawCard } from './components/Draw';
 
 type TicketFilter = 'all' | 'active' | 'done';
 
@@ -147,7 +147,7 @@ function App() {
             ) : (
               <Space wrap>
                 {draws.map((draw, index) => (
-                  <Draw
+                  <DrawCard
                     draw={draw}
                     key={draw.id}
                     index={index}
@@ -211,10 +211,10 @@ function App() {
             ) : (
               <Space wrap>
                 {filteredTickets.map((ticket, index) => (
-                  <Ticket
+                  <TicketCard
                     key={ticket.id}
                     index={index}
-                    onDelete={(id) => dispatch(deleteTicket(id))}
+                    onDelete={(id: string) => dispatch(deleteTicket(id))}
                     onEdit={setEditingTicket}
                     ticket={ticket}
                   />

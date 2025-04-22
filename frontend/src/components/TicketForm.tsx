@@ -1,4 +1,5 @@
-import { Ticket, dayFields, formatDateISO } from '@todo/shared';
+import type { Ticket } from '@todo/shared';
+import { dayFields, formatDateISO } from '@todo/shared';
 import { useEffect, useRef, useState } from 'react';
 import {
   Form,

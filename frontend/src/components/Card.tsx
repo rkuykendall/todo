@@ -1,5 +1,7 @@
-import { Card as AntCard, CardProps } from 'antd';
-import { motion, MotionProps } from 'framer-motion';
+import { Card as AntCard } from 'antd';
+import type { CardProps } from 'antd';
+import { motion } from 'framer-motion';
+import type { MotionProps } from 'framer-motion';
 import styles from './Card.module.css';
 
 type MotionCardProps = Omit<CardProps, keyof MotionProps> & MotionProps;
