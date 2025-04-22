@@ -80,9 +80,10 @@ function App() {
           <Space>
             <Button
               icon={<SyncOutlined spin={createLoading} />}
-              loading={createLoading}
+              loading={createLoading || loadingDraws || loadingTickets}
               onClick={() => dispatch(createDraws())}
               type="primary"
+              disabled={tickets.length >= 5}
             >
               Draw Tickets for Today
             </Button>
