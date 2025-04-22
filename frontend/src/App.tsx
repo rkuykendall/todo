@@ -25,7 +25,7 @@ import Button from './components/Button';
 import { TicketCard } from './components/Ticket';
 import { DrawCard } from './components/Draw';
 
-type TicketFilter = 'all' | 'active' | 'done';
+type TicketFilter = 'tasks' | 'recurring' | 'done';
 
 const LoadingWrapper = ({
   loading,
@@ -55,7 +55,7 @@ function App() {
   } = useSelector((state: RootState) => state.draws);
   const [editingTicket, setEditingTicket] = useState<TicketType | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [ticketFilter, setTicketFilter] = useState<TicketFilter>('active');
+  const [ticketFilter, setTicketFilter] = useState<TicketFilter>('tasks');
 
   useEffect(() => {
     dispatch(fetchTickets());
@@ -64,8 +64,10 @@ function App() {
 
   const filteredTickets = tickets.filter((ticket) => {
     switch (ticketFilter) {
-      case 'active':
-        return !ticket.done;
+      case 'tasks':
+        return !ticket.done && ticket.done_on_child_done;
+      case 'recurring':
+        return !ticket.done && !ticket.done_on_child_done;
       case 'done':
         return !!ticket.done;
       default:
@@ -174,8 +176,8 @@ function App() {
                 optionType="button"
                 buttonStyle="solid"
               >
-                <Radio.Button value="all">All</Radio.Button>
-                <Radio.Button value="active">Active</Radio.Button>
+                <Radio.Button value="tasks">Tasks</Radio.Button>
+                <Radio.Button value="recurring">Recurring</Radio.Button>
                 <Radio.Button value="done">Done</Radio.Button>
               </Radio.Group>
             </Col>
@@ -196,15 +198,11 @@ function App() {
                 message={
                   ticketFilter === 'done'
                     ? 'No completed tickets'
-                    : ticketFilter === 'active'
-                      ? 'No active tickets'
-                      : 'No tickets found'
+                    : ticketFilter === 'tasks'
+                      ? 'No active tasks'
+                      : 'No recurring tickets'
                 }
-                description={
-                  ticketFilter === 'all'
-                    ? 'Add your first ticket to get started!'
-                    : undefined
-                }
+                description={undefined}
                 type="info"
                 showIcon
               />

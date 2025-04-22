@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 import { API_DOMAIN } from './utils';
-import { deleteTicket } from './ticketSlice';
+import { deleteTicket, fetchTickets } from './ticketSlice';
 
 export interface TicketDraw {
   id: string;
@@ -44,13 +44,19 @@ export const createDraws = createAsyncThunk('draws/createDraws', async () => {
 // 🧩 Update a draw's status (PATCH)
 export const patchDraw = createAsyncThunk(
   'draws/patchDraw',
-  async ({ id, ...updates }: Partial<TicketDraw> & { id: string }) => {
+  async (
+    { id, ...updates }: Partial<TicketDraw> & { id: string },
+    { dispatch }
+  ) => {
     const res = await fetch(`${API_DOMAIN}/ticket_draw/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
     });
-    return await res.json();
+    const data = await res.json();
+    // After successful update, fetch latest ticket states
+    await dispatch(fetchTickets());
+    return data;
   }
 );
 
