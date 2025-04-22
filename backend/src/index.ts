@@ -29,6 +29,11 @@ function basicAuth(req: Request, res: Response, next: NextFunction) {
   }
 
   const token = authHeader.split(' ')[1];
+  if (!token) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
   const passwordToCheck = token.trim();
 
   if (passwordToCheck !== AUTH_PASSWORD) {
