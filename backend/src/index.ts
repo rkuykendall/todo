@@ -238,71 +238,122 @@ const getTicketDraw: AsyncRequestHandler = (_req, res) => {
   const today = getTodayDate();
 
   const draws = db
-    .prepare('SELECT * FROM ticket_draw WHERE DATE(created_at) = ?')
+    .prepare(
+      "SELECT * FROM ticket_draw WHERE DATE(datetime(created_at, 'localtime')) = ?"
+    )
     .all(today) as RawDbDraw[];
 
   res.json(draws.map(normalizeDraw));
   return;
 };
 
-const createTicketDraw: AsyncRequestHandler = (_req, res) => {
-  const today = getTodayDate();
-  const todayDay = getTodayDayString();
+// SQL query constants
+const SELECT_DRAWS_BY_DATE =
+  "SELECT * FROM ticket_draw WHERE DATE(datetime(created_at, 'localtime')) = ?";
+const SELECT_TICKET_IDS_BY_DATE =
+  "SELECT ticket_id FROM ticket_draw WHERE DATE(datetime(created_at, 'localtime')) = ?";
+const INSERT_TICKET_DRAW = `
+  INSERT INTO ticket_draw (id, created_at, ticket_id, done, skipped)
+  VALUES (?, datetime('now', 'localtime'), ?, 0, 0)
+`;
 
-  // Get existing draws for today
-  const existingDraws = db
-    .prepare('SELECT ticket_id FROM ticket_draw WHERE DATE(created_at) = ?')
-    .all(today) as Array<{ ticket_id: string }>;
-  const existingTicketIds = new Set(existingDraws.map((d) => d.ticket_id));
+interface TicketDrawResult {
+  addedDraws: number;
+  totalDraws: number;
+}
 
-  // First, get all must_draw tickets for today
+function selectTicketsForDraw(
+  todayDay: string,
+  existingTicketIds: Set<string>
+): RawDbTicket[] {
+  // Get must-draw tickets first
   const mustDrawTickets = db
     .prepare(`SELECT * FROM ticket WHERE must_draw_${todayDay} = 1`)
     .all() as RawDbTicket[];
 
-  // Then, get all eligible can_draw tickets that aren't must_draw
+  // Get eligible can-draw tickets
   const canDrawTickets = db
     .prepare(
       `SELECT * FROM ticket WHERE can_draw_${todayDay} = 1 AND must_draw_${todayDay} = 0`
     )
     .all() as RawDbTicket[];
 
-  const insert = db.prepare(`
-    INSERT INTO ticket_draw (id, created_at, ticket_id, done, skipped)
-    VALUES (?, (CURRENT_TIMESTAMP_CT()), ?, 0, 0)
-  `);
+  // Filter out tickets that already have draws
+  const selectedTickets = [...mustDrawTickets];
+  const remainingCanDraw = canDrawTickets.filter(
+    (t) => !existingTicketIds.has(t.id)
+  );
 
-  // Add all must_draw tickets that don't already have a draw
-  for (const ticket of mustDrawTickets) {
+  // Randomly select additional tickets if needed
+  while (
+    selectedTickets.length + existingTicketIds.size < 5 &&
+    remainingCanDraw.length > 0
+  ) {
+    const randomIndex = Math.floor(Math.random() * remainingCanDraw.length);
+    selectedTickets.push(remainingCanDraw[randomIndex]);
+    remainingCanDraw.splice(randomIndex, 1);
+  }
+
+  return selectedTickets;
+}
+
+function createDrawsForTickets(
+  tickets: RawDbTicket[],
+  existingTicketIds: Set<string>
+): TicketDrawResult {
+  const insert = db.prepare(INSERT_TICKET_DRAW);
+  let addedDraws = 0;
+
+  for (const ticket of tickets) {
     if (!existingTicketIds.has(ticket.id)) {
       const id = uuidv4();
       insert.run(id, ticket.id);
       existingTicketIds.add(ticket.id);
+      addedDraws++;
     }
   }
 
-  // Randomly select from can_draw tickets until we reach at least 5 total tickets
-  const remainingCanDraw = canDrawTickets.filter(
-    (t) => !existingTicketIds.has(t.id)
-  );
-  while (existingTicketIds.size < 5 && remainingCanDraw.length > 0) {
-    const randomIndex = Math.floor(Math.random() * remainingCanDraw.length);
-    const ticket = remainingCanDraw[randomIndex];
+  return {
+    addedDraws,
+    totalDraws: existingTicketIds.size,
+  };
+}
 
-    const id = uuidv4();
-    insert.run(id, ticket.id);
-    existingTicketIds.add(ticket.id);
+const createTicketDraw: AsyncRequestHandler = (_req, res) => {
+  try {
+    const today = getTodayDate();
+    const todayDay = getTodayDayString();
 
-    // Remove the selected ticket from remainingCanDraw
-    remainingCanDraw.splice(randomIndex, 1);
+    // Get existing draws
+    const existingDraws = db
+      .prepare(SELECT_TICKET_IDS_BY_DATE)
+      .all(today) as Array<{ ticket_id: string }>;
+    const existingTicketIds = new Set(existingDraws.map((d) => d.ticket_id));
+
+    // Select and create new draws
+    const selectedTickets = selectTicketsForDraw(todayDay, existingTicketIds);
+    const result = createDrawsForTickets(selectedTickets, existingTicketIds);
+
+    if (result.addedDraws === 0 && result.totalDraws < 5) {
+      res.status(400).json({
+        error: 'Not enough eligible tickets available for today',
+        currentDraws: result.totalDraws,
+      });
+      return;
+    }
+
+    // Get all draws for today, including newly created ones
+    const todaysDraws = db
+      .prepare(SELECT_DRAWS_BY_DATE)
+      .all(today) as RawDbDraw[];
+
+    res.status(201).json(todaysDraws.map(normalizeDraw));
+  } catch (error) {
+    console.error('Error creating ticket draw:', error);
+    res
+      .status(500)
+      .json({ error: 'Internal server error creating ticket draw' });
   }
-
-  // Get all draws for today, including the newly created ones
-  const todaysDraws = db
-    .prepare('SELECT * FROM ticket_draw WHERE DATE(created_at) = ?')
-    .all(today) as RawDbDraw[];
-
-  res.status(201).json(todaysDraws.map(normalizeDraw));
   return;
 };
 

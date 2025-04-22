@@ -6,3 +6,4 @@ shared/*.js
 .DS_Store
 *.tar
 .env
+data

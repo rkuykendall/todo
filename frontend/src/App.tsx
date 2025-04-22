@@ -83,7 +83,7 @@ function App() {
               loading={createLoading || loadingDraws || loadingTickets}
               onClick={() => dispatch(createDraws())}
               type="primary"
-              disabled={tickets.length >= 5}
+              disabled={draws.length >= 5}
             >
               Draw Tickets for Today
             </Button>
