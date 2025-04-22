@@ -13,6 +13,7 @@ export type Day = (typeof dayFields)[number];
 export interface Ticket {
   id: string;
   title: string;
+  created_at: string;
   done_on_child_done: boolean;
   done: string | null;
   last_drawn: string | null;

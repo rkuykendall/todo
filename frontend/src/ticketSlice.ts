@@ -39,7 +39,10 @@ export const addTicket = createAsyncThunk(
       body: JSON.stringify(data),
     });
     const result = await res.json();
-    return { ...data, id: result.id } as Ticket;
+
+    // Fetch the complete ticket data
+    const ticketRes = await fetch(`${API_DOMAIN}/tickets/${result.id}`);
+    return await ticketRes.json();
   }
 );
 

@@ -8,8 +8,9 @@ import {
   ClockCircleOutlined,
   CalendarOutlined,
   CheckCircleOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons';
-import { formatDate } from '../utils';
+import { formatDate, formatAge } from '../utils';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { Space, Typography, Popconfirm } from 'antd';
@@ -87,6 +88,9 @@ export function Ticket({ ticket, onEdit, onDelete, index = 0 }: TicketProps) {
             <div>
               <ClockCircleOutlined /> Last drawn:{' '}
               {formatDate(ticket.last_drawn)}
+            </div>
+            <div>
+              <HistoryOutlined /> Created: {formatAge(ticket.created_at)}
             </div>
             {ticket.frequency !== 1 && (
               <div>

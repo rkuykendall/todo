@@ -56,6 +56,7 @@ function normalizeTicket(ticket: RawDbTicket): Ticket {
   return {
     id: ticket.id,
     title: ticket.title,
+    created_at: ticket.created_at,
     done_on_child_done: Boolean(ticket.done_on_child_done),
     done: ticket.done,
     last_drawn: ticket.last_drawn,
@@ -284,6 +285,7 @@ function selectTicketsForDraw(
         last_drawn IS NULL 
         OR julianday(?) - julianday(last_drawn) >= frequency
       )
+      ORDER BY last_drawn ASC NULLS FIRST, created_at ASC
     `
     )
     .all(today) as RawDbTicket[];
@@ -298,7 +300,8 @@ function selectTicketsForDraw(
       AND (
         last_drawn IS NULL 
         OR julianday(?) - julianday(last_drawn) >= frequency
-      )`
+      )
+      ORDER BY last_drawn ASC NULLS FIRST, created_at ASC`
     )
     .all(today) as RawDbTicket[];
 
@@ -308,14 +311,12 @@ function selectTicketsForDraw(
     (t) => !existingTicketIds.has(t.id)
   );
 
-  // Randomly select additional tickets if needed
+  // Add remaining tickets in order (no random selection)
   while (
     selectedTickets.length + existingTicketIds.size < 5 &&
     remainingCanDraw.length > 0
   ) {
-    const randomIndex = Math.floor(Math.random() * remainingCanDraw.length);
-    selectedTickets.push(remainingCanDraw[randomIndex]);
-    remainingCanDraw.splice(randomIndex, 1);
+    selectedTickets.push(remainingCanDraw.shift());
   }
 
   return selectedTickets;
