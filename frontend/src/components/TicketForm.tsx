@@ -89,7 +89,12 @@ function TicketForm({
   }, [form, initialValues, open]);
 
   const handleSubmit = (values: FormValues) => {
-    onSubmit(values);
+    // Ensure frequency is a number before submitting
+    const submittedValues = {
+      ...values,
+      frequency: Number(values.frequency),
+    };
+    onSubmit(submittedValues);
     form.resetFields();
   };
 
@@ -169,9 +174,12 @@ function TicketForm({
                 type="number"
                 min={1}
                 placeholder="Enter custom frequency in days"
-                onChange={(e) =>
-                  form.setFieldsValue({ frequency: Number(e.target.value) })
-                }
+                onChange={(e) => {
+                  const value = parseInt(e.target.value, 10);
+                  if (!isNaN(value)) {
+                    form.setFieldsValue({ frequency: value });
+                  }
+                }}
               />
             )}
           </Space>

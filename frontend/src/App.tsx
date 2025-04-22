@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { Ticket as TicketType } from '@todo/shared';
-import { ConfigProvider, Typography, Alert, Spin, Radio } from 'antd';
+import { ConfigProvider, Typography, Alert, Spin, Radio, message } from 'antd';
 import { SyncOutlined, PlusOutlined } from '@ant-design/icons';
 import useBreakpoint from 'antd/es/grid/hooks/useBreakpoint';
 import type { RootState, AppDispatch } from './store';
@@ -59,6 +59,7 @@ function App() {
   );
   const [loginError, setLoginError] = useState<string>();
   const screens = useBreakpoint();
+  const [messageApi, contextHolder] = message.useMessage();
 
   const handleLogin = async (password: string) => {
     setLoginError(undefined);
@@ -170,6 +171,7 @@ function App() {
         },
       }}
     >
+      {contextHolder}
       <div
         style={{
           maxWidth: 1064,
@@ -319,6 +321,7 @@ function App() {
             onSubmit={(ticket) => {
               dispatch(addTicket(ticket));
               setIsAddModalOpen(false);
+              messageApi.success('Ticket added successfully');
             }}
             open={isAddModalOpen}
             title="Add New Ticket"
@@ -331,6 +334,7 @@ function App() {
               if (editingTicket) {
                 dispatch(updateTicket({ id: editingTicket.id, updates }));
                 setEditingTicket(null);
+                messageApi.success('Ticket updated successfully');
               }
             }}
             open={!!editingTicket}
