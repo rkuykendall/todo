@@ -218,13 +218,20 @@ const deleteTicket: AsyncRequestHandler = (req, res) => {
 // Utility: Get today's lowercase day name (e.g., "wednesday")
 function getTodayDayString(): string {
   return new Date()
-    .toLocaleDateString('en-US', { weekday: 'long' })
+    .toLocaleString('en-US', {
+      weekday: 'long',
+      timeZone: 'America/Chicago',
+    })
     .toLowerCase();
 }
 
 // Utility: Get ISO date string for YYYY-MM-DD (used for filtering)
 function getTodayDate(): string {
-  return formatDateISO(new Date());
+  const date = new Date();
+  const central = new Date(
+    date.toLocaleString('en-US', { timeZone: 'America/Chicago' })
+  );
+  return formatDateISO(central);
 }
 
 const getTicketDraw: AsyncRequestHandler = (_req, res) => {
@@ -262,7 +269,7 @@ const createTicketDraw: AsyncRequestHandler = (_req, res) => {
 
   const insert = db.prepare(`
     INSERT INTO ticket_draw (id, created_at, ticket_id, done, skipped)
-    VALUES (?, CURRENT_TIMESTAMP, ?, 0, 0)
+    VALUES (?, (CURRENT_TIMESTAMP_CT()), ?, 0, 0)
   `);
 
   // Add all must_draw tickets that don't already have a draw
@@ -335,7 +342,7 @@ const updateTicketDraw: AsyncRequestHandler = (req, res) => {
 
   if (updates.done === true) {
     db.prepare(
-      'UPDATE ticket SET last_drawn = CURRENT_TIMESTAMP WHERE id = ?'
+      'UPDATE ticket SET last_drawn = (CURRENT_TIMESTAMP_CT()) WHERE id = ?'
     ).run(existing.ticket_id);
   }
 

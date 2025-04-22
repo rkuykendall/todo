@@ -9,10 +9,15 @@ const db = new Database(dbPath);
 
 db.pragma('foreign_keys = ON');
 
+// Configure SQLite to use Central Time
+db.function('CURRENT_TIMESTAMP_CT', () => {
+  return new Date().toLocaleString('en-US', { timeZone: 'America/Chicago' });
+});
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS ticket (
     id TEXT PRIMARY KEY,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT (CURRENT_TIMESTAMP_CT()),
     title TEXT NOT NULL,
     done_on_child_done BOOLEAN DEFAULT 1,
     done DATETIME,
@@ -39,7 +44,7 @@ db.exec(`
 db.exec(`
   CREATE TABLE IF NOT EXISTS ticket_draw (
     id TEXT PRIMARY KEY,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT (CURRENT_TIMESTAMP_CT()),
     ticket_id TEXT NOT NULL,
     done BOOLEAN DEFAULT 0,
     skipped BOOLEAN DEFAULT 0,
