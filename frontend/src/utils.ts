@@ -5,7 +5,7 @@ export function formatDate(date: string | null): string {
   if (!date) return 'Never';
   return new Date(date).toLocaleString('en-US', {
     timeZone: 'America/Chicago',
-    dateStyle: 'medium',
+    dateStyle: 'short',
   });
 }
 

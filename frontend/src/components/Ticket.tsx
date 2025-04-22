@@ -5,10 +5,7 @@ import DayIndicator from './DayIndicator';
 import {
   EditOutlined,
   DeleteOutlined,
-  ClockCircleOutlined,
-  CalendarOutlined,
   CheckCircleOutlined,
-  HistoryOutlined,
 } from '@ant-design/icons';
 import { formatDate, formatAge } from '../utils';
 import { useDispatch, useSelector } from 'react-redux';
@@ -51,7 +48,6 @@ export const TicketCard = ({
   return (
     <Card
       index={index}
-      done={!!ticket.done}
       actions={[
         <Button
           icon={<EditOutlined />}
@@ -89,31 +85,17 @@ export const TicketCard = ({
       <div>
         <Typography.Title level={5}>{ticket.title}</Typography.Title>
         <Space direction="vertical" size={2}>
-          <div>
-            <ClockCircleOutlined /> Last drawn: {formatDate(ticket.last_drawn)}
-          </div>
-          <div>
-            <HistoryOutlined /> Created: {formatAge(ticket.created_at)}
-          </div>
+          <div>Last drawn: {formatDate(ticket.last_drawn)}</div>
+          <div>Created: {formatAge(ticket.created_at)}</div>
           {ticket.frequency !== 1 && (
-            <div>
-              <CalendarOutlined /> Frequency: {ticket.frequency} days
-            </div>
+            <div>Frequency: {ticket.frequency} days</div>
           )}
         </Space>
       </div>
 
-      {ticket.deadline && (
-        <div>
-          <ClockCircleOutlined /> Deadline: {formatDate(ticket.deadline)}
-        </div>
-      )}
+      {ticket.deadline && <div>Deadline: {formatDate(ticket.deadline)}</div>}
 
-      {ticket.done && (
-        <div>
-          <CheckCircleOutlined /> Done: {formatDate(ticket.done)}
-        </div>
-      )}
+      {ticket.done && <div>Done: {formatDate(ticket.done)}</div>}
     </Card>
   );
 };

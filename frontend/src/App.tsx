@@ -180,7 +180,7 @@ function App() {
           width: '100%',
         }}
       >
-        <Space direction="vertical" size={screens.sm ? 64 : 24} block>
+        <Space direction="vertical" size="large" block>
           <Header
             title={
               <Typography.Title level={1} style={{ margin: 0 }}>

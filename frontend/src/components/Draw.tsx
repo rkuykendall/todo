@@ -104,6 +104,7 @@ export function DrawCard({
                   <Button
                     icon={<UndoOutlined />}
                     key="undo"
+                    type="text"
                     loading={isLoading}
                     onClick={() => onUndo(draw.id)}
                   >

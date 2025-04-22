@@ -28,11 +28,6 @@
   margin-top: auto;
 }
 
-.card[data-done='true'] {
-  opacity: 0.8;
-  filter: grayscale(30%);
-}
-
 .card[data-done='true']::before {
   content: '';
   position: absolute;

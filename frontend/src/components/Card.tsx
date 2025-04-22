@@ -20,7 +20,7 @@ export function Card({ done, index = 0, ...props }: ExtendedCardProps) {
   const shared = {
     className: styles.card,
     variant: 'borderless' as const,
-    dataDone: done,
+    'data-done': done,
   };
 
   if (!screens.sm) {
