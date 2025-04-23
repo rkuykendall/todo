@@ -10,7 +10,7 @@ import {
 import { formatDate, formatAge } from '../utils';
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState, AppDispatch } from '../store';
-import { Space, Typography, Popconfirm } from 'antd';
+import { Space, Typography, Popconfirm, List, Card as AntCard } from 'antd';
 import { updateTicket } from '../ticketSlice';
 
 interface TicketCardProps {
@@ -19,6 +19,23 @@ interface TicketCardProps {
   onDelete: (id: string) => void;
   index?: number;
 }
+
+export const SimpleTicketList = ({ tickets }: { tickets: Ticket[] }) => {
+  return (
+    <AntCard styles={{ body: { padding: 0 } }}>
+      <List
+        size="small"
+        bordered={false}
+        dataSource={tickets}
+        renderItem={(ticket) => (
+          <List.Item>
+            <Typography.Text>{ticket.title}</Typography.Text>
+          </List.Item>
+        )}
+      />
+    </AntCard>
+  );
+};
 
 export const TicketCard = ({
   ticket,

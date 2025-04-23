@@ -1,8 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { Ticket as TicketType } from '@todo/shared';
-import { ConfigProvider, Typography, Alert, Spin, Radio, message } from 'antd';
-import { SyncOutlined, PlusOutlined } from '@ant-design/icons';
+import {
+  ConfigProvider,
+  Typography,
+  Alert,
+  Spin,
+  Radio,
+  message,
+  Switch,
+  Space as AntSpace,
+} from 'antd';
+import {
+  SyncOutlined,
+  PlusOutlined,
+  UnorderedListOutlined,
+  AppstoreOutlined,
+} from '@ant-design/icons';
 import useBreakpoint from 'antd/es/grid/hooks/useBreakpoint';
 import type { RootState, AppDispatch } from './store';
 import {
@@ -15,7 +29,7 @@ import { fetchDraws, patchDraw, createDraws } from './drawSlice';
 import TicketForm from './components/TicketForm';
 import Button from './components/Button';
 import Space from './components/Space';
-import { TicketCard } from './components/Ticket';
+import { TicketCard, SimpleTicketList } from './components/Ticket';
 import { DrawCard } from './components/Draw';
 import Login from './components/Login';
 import { API_DOMAIN } from './utils';
@@ -60,6 +74,7 @@ function App() {
   const [loginError, setLoginError] = useState<string>();
   const screens = useBreakpoint();
   const [messageApi, contextHolder] = message.useMessage();
+  const [isListView, setIsListView] = useState(false);
 
   const handleLogin = async (password: string) => {
     setLoginError(undefined);
@@ -267,16 +282,24 @@ function App() {
               </Typography.Title>
             }
             actions={
-              <Radio.Group
-                value={ticketFilter}
-                onChange={(e) => setTicketFilter(e.target.value)}
-                optionType="button"
-                buttonStyle="solid"
-              >
-                <Radio.Button value="tasks">Tasks</Radio.Button>
-                <Radio.Button value="recurring">Recurring</Radio.Button>
-                <Radio.Button value="done">Done</Radio.Button>
-              </Radio.Group>
+              <AntSpace>
+                <Radio.Group
+                  value={ticketFilter}
+                  onChange={(e) => setTicketFilter(e.target.value)}
+                  optionType="button"
+                  buttonStyle="solid"
+                >
+                  <Radio.Button value="tasks">Tasks</Radio.Button>
+                  <Radio.Button value="recurring">Recurring</Radio.Button>
+                  <Radio.Button value="done">Done</Radio.Button>
+                </Radio.Group>
+                <Switch
+                  checkedChildren={<UnorderedListOutlined />}
+                  unCheckedChildren={<AppstoreOutlined />}
+                  checked={isListView}
+                  onChange={setIsListView}
+                />
+              </AntSpace>
             }
           />
 
@@ -303,6 +326,8 @@ function App() {
                 type="info"
                 showIcon
               />
+            ) : isListView ? (
+              <SimpleTicketList tickets={filteredTickets} />
             ) : (
               <Space
                 wrap={screens.sm}
