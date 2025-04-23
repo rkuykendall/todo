@@ -318,7 +318,7 @@ function selectTicketsForDraw(
       AND done IS NULL
       AND (
         last_drawn IS NULL 
-        OR julianday(?) - julianday(last_drawn) >= frequency
+        OR julianday(?) - julianday(last_drawn) >= (frequency - 1)
       )
       ORDER BY last_drawn ASC NULLS FIRST, created_at ASC
     `
@@ -334,7 +334,7 @@ function selectTicketsForDraw(
       AND done IS NULL
       AND (
         last_drawn IS NULL 
-        OR julianday(?) - julianday(last_drawn) >= frequency
+        OR julianday(?) - julianday(last_drawn) >= (frequency - 1)
       )
       ORDER BY last_drawn ASC NULLS FIRST, created_at ASC`
     )

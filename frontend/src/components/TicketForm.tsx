@@ -61,12 +61,16 @@ function TicketForm({
 
   useEffect(() => {
     if (open) {
+      const frequency = initialValues.frequency ?? emptyValues.frequency;
+      const isCustom = ![1, 7, 30, 365].includes(frequency);
+      setCustomFrequency(isCustom);
+
       form.setFieldsValue({
         title: initialValues.title ?? emptyValues.title,
         done_on_child_done:
           initialValues.done_on_child_done ?? emptyValues.done_on_child_done,
         deadline: initialValues.deadline || null,
-        frequency: initialValues.frequency ?? emptyValues.frequency,
+        frequency: frequency,
         ...Object.fromEntries(
           dayFields.flatMap((day) => [
             [
@@ -151,6 +155,9 @@ function TicketForm({
         >
           <Space direction="vertical" style={{ width: '100%' }}>
             <Radio.Group
+              value={
+                customFrequency ? 'custom' : form.getFieldValue('frequency')
+              }
               onChange={(e) => {
                 const value = e.target.value;
                 setCustomFrequency(value === 'custom');
@@ -158,7 +165,6 @@ function TicketForm({
                   form.setFieldsValue({ frequency: value });
                 }
               }}
-              defaultValue={1}
               optionType="button"
               buttonStyle="solid"
               options={[
@@ -174,6 +180,7 @@ function TicketForm({
                 type="number"
                 min={1}
                 placeholder="Enter custom frequency in days"
+                value={form.getFieldValue('frequency')}
                 onChange={(e) => {
                   const value = parseInt(e.target.value, 10);
                   if (!isNaN(value)) {

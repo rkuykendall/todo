@@ -34,12 +34,19 @@ export const fetchDraws = createAsyncThunk('draws/fetchDraws', async () => {
 });
 
 // 📅 Create draws for today
-export const createDraws = createAsyncThunk('draws/createDraws', async () => {
-  const res = await fetch(`${API_DOMAIN}/ticket_draw`, {
-    method: 'POST',
-  });
-  return await res.json(); // array of today's draws
-});
+export const createDraws = createAsyncThunk(
+  'draws/createDraws',
+  async (_, { rejectWithValue }) => {
+    const res = await fetch(`${API_DOMAIN}/ticket_draw`, {
+      method: 'POST',
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return rejectWithValue(data);
+    }
+    return data;
+  }
+);
 
 // 🧩 Update a draw's status (PATCH)
 export const patchDraw = createAsyncThunk(

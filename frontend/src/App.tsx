@@ -196,7 +196,13 @@ function App() {
                   block={!screens.sm}
                   icon={<SyncOutlined spin={createLoading} />}
                   loading={createLoading || loadingDraws || loadingTickets}
-                  onClick={() => dispatch(createDraws())}
+                  onClick={async () => {
+                    const result = await dispatch(createDraws());
+                    if (createDraws.rejected.match(result)) {
+                      const payload = result.payload as { error: string };
+                      messageApi.warning(payload.error);
+                    }
+                  }}
                   type="primary"
                   disabled={draws.length >= 5}
                 >
