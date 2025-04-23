@@ -364,13 +364,17 @@ function createDrawsForTickets(
   tickets: RawDbTicket[],
   existingTicketIds: Set<string>
 ): TicketDrawResult {
-  const insert = db.prepare(INSERT_TICKET_DRAW);
+  const insertDraw = db.prepare(INSERT_TICKET_DRAW);
+  const updateLastDrawn = db.prepare(
+    "UPDATE ticket SET last_drawn = datetime('now', 'localtime') WHERE id = ?"
+  );
   let addedDraws = 0;
 
   for (const ticket of tickets) {
     if (!existingTicketIds.has(ticket.id)) {
       const id = uuidv4();
-      insert.run(id, ticket.id);
+      insertDraw.run(id, ticket.id);
+      updateLastDrawn.run(ticket.id);
       existingTicketIds.add(ticket.id);
       addedDraws++;
     }
@@ -454,38 +458,15 @@ const updateTicketDraw: AsyncRequestHandler = (req, res) => {
   );
   updateStmt.run(...coercedValues, id);
 
-  if (updates.done === true || updates.skipped === true) {
+  // Only mark the parent ticket as done if the draw is marked as done (not skipped)
+  if (updates.done === true) {
     const ticket = db
       .prepare('SELECT * FROM ticket WHERE id = ?')
       .get(existing.ticket_id) as RawDbTicket;
 
     if (ticket.done_on_child_done) {
-      // Get all draws for this ticket today
-      const allDrawsToday = db
-        .prepare(
-          `SELECT * FROM ticket_draw 
-           WHERE ticket_id = ? 
-           AND DATE(datetime(created_at, 'localtime')) = DATE('now', 'localtime')`
-        )
-        .all(existing.ticket_id) as RawDbDraw[];
-
-      // Check if all draws are either done or skipped
-      const allCompleted = allDrawsToday.every(
-        (draw) => draw.done || draw.skipped
-      );
-
-      if (allCompleted) {
-        // Mark the ticket as done
-        db.prepare(
-          "UPDATE ticket SET done = datetime('now', 'localtime') WHERE id = ?"
-        ).run(existing.ticket_id);
-      }
-    }
-
-    // Update last_drawn timestamp only when marked as done
-    if (updates.done === true) {
       db.prepare(
-        "UPDATE ticket SET last_drawn = datetime('now', 'localtime') WHERE id = ?"
+        "UPDATE ticket SET done = datetime('now', 'localtime') WHERE id = ?"
       ).run(existing.ticket_id);
     }
   }
