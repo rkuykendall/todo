@@ -1,18 +1,10 @@
 import type { Ticket } from '@todo/shared';
 import { dayFields, formatDateISO } from '@todo/shared';
-import { useEffect, useRef, useState } from 'react';
-import {
-  Form,
-  Input,
-  Checkbox,
-  Space,
-  Modal,
-  Switch,
-  DatePicker,
-  Radio,
-} from 'antd';
+import { useEffect, useRef } from 'react';
+import { Form, Input, Checkbox, Space, Modal, Switch, DatePicker } from 'antd';
 import type { InputRef } from 'antd';
 import Button from './Button';
+import { FrequencySelector } from './FrequencySelector';
 
 interface TicketFormProps {
   initialValues?: Partial<Ticket>;
@@ -57,20 +49,15 @@ function TicketForm({
 }: TicketFormProps) {
   const [form] = Form.useForm<FormValues>();
   const titleInputRef = useRef<InputRef>(null);
-  const [customFrequency, setCustomFrequency] = useState(false);
 
   useEffect(() => {
     if (open) {
-      const frequency = initialValues.frequency ?? emptyValues.frequency;
-      const isCustom = ![1, 7, 30, 365].includes(frequency);
-      setCustomFrequency(isCustom);
-
       form.setFieldsValue({
         title: initialValues.title ?? emptyValues.title,
         done_on_child_done:
           initialValues.done_on_child_done ?? emptyValues.done_on_child_done,
         deadline: initialValues.deadline || null,
-        frequency: frequency,
+        frequency: initialValues.frequency ?? emptyValues.frequency,
         ...Object.fromEntries(
           dayFields.flatMap((day) => [
             [
@@ -153,43 +140,7 @@ function TicketForm({
             { required: true, message: 'Please select or enter a frequency' },
           ]}
         >
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Radio.Group
-              value={
-                customFrequency ? 'custom' : form.getFieldValue('frequency')
-              }
-              onChange={(e) => {
-                const value = e.target.value;
-                setCustomFrequency(value === 'custom');
-                if (value !== 'custom') {
-                  form.setFieldsValue({ frequency: value });
-                }
-              }}
-              optionType="button"
-              buttonStyle="solid"
-              options={[
-                { label: 'Daily', value: 1 },
-                { label: 'Weekly', value: 7 },
-                { label: 'Monthly', value: 30 },
-                { label: 'Annual', value: 365 },
-                { label: 'Custom', value: 'custom' },
-              ]}
-            />
-            {customFrequency && (
-              <Input
-                type="number"
-                min={1}
-                placeholder="Enter custom frequency in days"
-                value={form.getFieldValue('frequency')}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value, 10);
-                  if (!isNaN(value)) {
-                    form.setFieldsValue({ frequency: value });
-                  }
-                }}
-              />
-            )}
-          </Space>
+          <FrequencySelector />
         </Form.Item>
 
         <Form.Item label="Can draw on">

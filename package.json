@@ -3,9 +3,13 @@
   "private": true,
   "scripts": {
     "format": "npm run format --workspaces",
+    "format:check": "prettier --check .",
     "lint": "npm run lint --workspaces",
     "build": "npm run build --workspaces",
-    "check": "npm run format && npm run lint && npm run build",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "tsc --noEmit --project frontend/tsconfig.app.json && tsc --noEmit --project backend/tsconfig.json && tsc --noEmit --project shared/tsconfig.json",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test",
+    "fix": "npm run format && npm run lint:fix",
     "lint:fix": "npm run lint:fix --workspaces",
     "prepare": "husky",
     "clear-draws": "curl -X DELETE http://localhost:4000/ticket_draw"

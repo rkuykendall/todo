@@ -4,5 +4,5 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "moduleResolution": "bundler"
   },
-  "include": ["src"]
+  "include": ["src", "jest.config.ts"]
 }
