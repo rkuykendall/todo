@@ -1,6 +1,3 @@
-/** @jest-environment jsdom */
-// @ts-expect-error - React is needed for JSX
-import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { FrequencySelector } from '../FrequencySelector';
 

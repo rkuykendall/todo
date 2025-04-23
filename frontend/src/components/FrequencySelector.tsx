@@ -1,5 +1,3 @@
-// @ts-expect-error - React is needed for JSX
-import React from 'react';
 import { Space, Radio, Input } from 'antd';
 import { useState } from 'react';
 
