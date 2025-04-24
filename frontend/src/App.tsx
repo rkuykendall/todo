@@ -361,9 +361,16 @@ function App() {
           <TicketForm
             onCancel={() => setIsAddModalOpen(false)}
             onSubmit={(ticket) => {
-              dispatch(addTicket(ticket));
-              setIsAddModalOpen(false);
-              messageApi.success('Ticket added successfully');
+              dispatch(addTicket(ticket))
+                .unwrap()
+                .then(() => {
+                  setIsAddModalOpen(false);
+                  messageApi.success('Ticket added successfully');
+                })
+                .catch((error) => {
+                  // The error will be handled by the TicketForm component
+                  throw error;
+                });
             }}
             open={isAddModalOpen}
             title="Add New Ticket"
@@ -374,9 +381,16 @@ function App() {
             onCancel={() => setEditingTicket(null)}
             onSubmit={(updates) => {
               if (editingTicket) {
-                dispatch(updateTicket({ id: editingTicket.id, updates }));
-                setEditingTicket(null);
-                messageApi.success('Ticket updated successfully');
+                dispatch(updateTicket({ id: editingTicket.id, updates }))
+                  .unwrap()
+                  .then(() => {
+                    setEditingTicket(null);
+                    messageApi.success('Ticket updated successfully');
+                  })
+                  .catch((error) => {
+                    // The error will be handled by the TicketForm component
+                    throw error;
+                  });
               }
             }}
             open={!!editingTicket}

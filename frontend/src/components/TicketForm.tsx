@@ -1,8 +1,18 @@
 import type { Ticket } from '@todo/shared';
 import { dayFields } from '@todo/shared';
-import { useEffect, useRef } from 'react';
-import { Form, Input, Checkbox, Space, Modal, Switch, DatePicker } from 'antd';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Form,
+  Input,
+  Checkbox,
+  Space,
+  Modal,
+  Switch,
+  DatePicker,
+  Alert,
+} from 'antd';
 import type { InputRef } from 'antd';
+import type { NamePath } from 'antd/es/form/interface';
 import Button from './Button';
 import { FrequencySelector } from './FrequencySelector';
 
@@ -49,6 +59,10 @@ function TicketForm({
 }: TicketFormProps) {
   const [form] = Form.useForm<FormValues>();
   const titleInputRef = useRef<InputRef>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Watch the "recurring" field value to conditionally render the frequency field
+  const recurring = Form.useWatch('recurring', form);
 
   useEffect(() => {
     if (open) {
@@ -71,6 +85,9 @@ function TicketForm({
         ),
       });
 
+      // Clear any previous errors when the form reopens
+      setError(null);
+
       // Focus the title input when modal opens
       setTimeout(() => {
         titleInputRef.current?.focus();
@@ -78,14 +95,57 @@ function TicketForm({
     }
   }, [form, initialValues, open]);
 
-  const handleSubmit = (values: FormValues) => {
-    // Ensure frequency is a number before submitting
-    const submittedValues = {
-      ...values,
-      frequency: Number(values.frequency),
-    };
-    onSubmit(submittedValues);
-    form.resetFields();
+  const handleSubmit = async (values: FormValues) => {
+    try {
+      setError(null);
+
+      // Always ensure frequency is a number (defaults to 1 if not recurring)
+      const submittedValues = {
+        ...values,
+        // If not recurring, ensure frequency is still a valid number (default to 1)
+        frequency: values.recurring ? Number(values.frequency) : 1,
+      };
+
+      await onSubmit(submittedValues);
+      form.resetFields();
+    } catch (err) {
+      // Handle validation errors from the backend
+      if (err instanceof Error) {
+        setError(err.message);
+      } else if (typeof err === 'object' && err !== null) {
+        try {
+          // Try to parse the error object
+          const errorObj = err as {
+            error?: { fieldErrors?: Record<string, string[]> };
+          };
+          if (errorObj.error?.fieldErrors) {
+            const fieldErrors = errorObj.error.fieldErrors;
+            const errorMessages = Object.entries(fieldErrors)
+              .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
+              .join('; ');
+            setError(`Validation failed: ${errorMessages}`);
+
+            // Set form field errors using properly typed field names
+            Object.entries(fieldErrors).forEach(([field, messages]) => {
+              if (field in values) {
+                form.setFields([
+                  {
+                    name: field as NamePath,
+                    errors: messages,
+                  },
+                ]);
+              }
+            });
+          } else {
+            setError('An unknown error occurred');
+          }
+        } catch {
+          setError('Failed to process the server response');
+        }
+      } else {
+        setError('An unknown error occurred');
+      }
+    }
   };
 
   return (
@@ -102,6 +162,10 @@ function TicketForm({
       open={open}
       title={title}
     >
+      {error && (
+        <Alert message="Error" description={error} type="error" showIcon />
+      )}
+
       <Form<FormValues>
         form={form}
         initialValues={emptyValues}
@@ -130,15 +194,18 @@ function TicketForm({
           <Switch title="Ticket is recurring" />
         </Form.Item>
 
-        <Form.Item
-          label="Frequency"
-          name="frequency"
-          rules={[
-            { required: true, message: 'Please select or enter a frequency' },
-          ]}
-        >
-          <FrequencySelector />
-        </Form.Item>
+        {recurring && (
+          <Form.Item
+            label="Frequency"
+            name="frequency"
+            rules={[
+              { required: true, message: 'Please select or enter a frequency' },
+              { type: 'number', message: 'Frequency must be a number' },
+            ]}
+          >
+            <FrequencySelector />
+          </Form.Item>
+        )}
 
         <Form.Item label="Can draw on">
           <Space wrap>
