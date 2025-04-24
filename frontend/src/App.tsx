@@ -10,6 +10,7 @@ import {
   message,
   Switch,
   Space as AntSpace,
+  Popconfirm,
 } from 'antd';
 import {
   SyncOutlined,
@@ -25,7 +26,7 @@ import {
   deleteTicket,
   updateTicket,
 } from './ticketSlice';
-import { fetchDraws, patchDraw, createDraws } from './drawSlice';
+import { fetchDraws, patchDraw, createDraws, clearDraws } from './drawSlice';
 import TicketForm from './components/TicketForm';
 import Button from './components/Button';
 import Space from './components/Space';
@@ -204,6 +205,16 @@ function App() {
             }
             actions={
               <Space desktop block={!screens.sm}>
+                <Popconfirm
+                  title="Are you sure you want to clear all draws?"
+                  onConfirm={() => dispatch(clearDraws())}
+                  okText="Yes"
+                  cancelText="No"
+                >
+                  <Button block={!screens.sm} type="text" danger>
+                    Clear Draws
+                  </Button>
+                </Popconfirm>
                 <Button block={!screens.sm} onClick={handleLogout} type="text">
                   Logout
                 </Button>

@@ -17,6 +17,7 @@ interface DrawState {
   error: string | null;
   createLoading: boolean;
   patchLoading: Record<string, boolean>;
+  clearLoading: boolean;
 }
 
 const initialState: DrawState = {
@@ -25,6 +26,7 @@ const initialState: DrawState = {
   error: null,
   createLoading: false,
   patchLoading: {},
+  clearLoading: false,
 };
 
 // 🔄 Fetch today's draws
@@ -44,6 +46,20 @@ export const createDraws = createAsyncThunk(
     if (!res.ok) {
       return rejectWithValue(data);
     }
+    return data;
+  }
+);
+
+// 🧹 Clear all draws
+export const clearDraws = createAsyncThunk(
+  'draws/clearDraws',
+  async (_, { dispatch }) => {
+    const res = await fetch(`${API_DOMAIN}/ticket_draw`, {
+      method: 'DELETE',
+    });
+    const data = await res.json();
+    // Refresh tickets after clearing draws
+    await dispatch(fetchTickets());
     return data;
   }
 );
@@ -105,6 +121,19 @@ const drawSlice = createSlice({
       .addCase(createDraws.rejected, (state, action) => {
         state.createLoading = false;
         state.error = action.error.message || 'Failed to create draws';
+      })
+      .addCase(clearDraws.pending, (state) => {
+        state.clearLoading = true;
+        state.error = null;
+      })
+      .addCase(clearDraws.fulfilled, (state) => {
+        state.draws = [];
+        state.clearLoading = false;
+        state.error = null;
+      })
+      .addCase(clearDraws.rejected, (state, action) => {
+        state.clearLoading = false;
+        state.error = action.error.message || 'Failed to clear draws';
       })
       .addCase(patchDraw.pending, (state, action) => {
         state.patchLoading[action.meta.arg.id] = true;
