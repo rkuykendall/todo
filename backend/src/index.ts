@@ -119,7 +119,7 @@ type RawDbTicket = {
   id: string;
   title: string;
   created_at: string;
-  done_on_child_done: number;
+  recurring: number;
   done: string | null;
   last_drawn: string | null;
   deadline: string | null;
@@ -153,7 +153,7 @@ function normalizeTicket(ticket: RawDbTicket): Ticket {
     id: ticket.id,
     title: ticket.title,
     created_at: ticket.created_at,
-    done_on_child_done: Boolean(ticket.done_on_child_done),
+    recurring: Boolean(ticket.recurring),
     done: ticket.done,
     last_drawn: ticket.last_drawn,
     deadline: ticket.deadline,
@@ -190,8 +190,8 @@ function denormalizeTicket(input: Partial<Ticket>): Record<string, unknown> {
   }
 
   // Convert boolean fields to numbers
-  if ('done_on_child_done' in input) {
-    result.done_on_child_done = Number(input.done_on_child_done);
+  if ('recurring' in input) {
+    result.recurring = Number(input.recurring);
   }
 
   for (const day of dayFields) {
@@ -247,7 +247,7 @@ const createTicket: AsyncRequestHandler = async (req, res, next) => {
     const columns = [
       'id',
       'title',
-      'done_on_child_done',
+      'recurring',
       'done',
       'last_drawn',
       'deadline',
@@ -258,7 +258,7 @@ const createTicket: AsyncRequestHandler = async (req, res, next) => {
     const values = [
       id,
       data.title,
-      Number(data.done_on_child_done ?? false),
+      Number(data.recurring ?? false),
       data.done ?? null,
       data.last_drawn ?? null,
       data.deadline ?? null,
@@ -602,7 +602,8 @@ const updateTicketDraw: AsyncRequestHandler = async (req, res, next) => {
           .prepare('SELECT * FROM ticket WHERE id = ?')
           .get(existing.ticket_id) as RawDbTicket;
 
-        if (ticket.done_on_child_done) {
+        // If the ticket is NOT recurring, mark it as done when its draw is marked as done
+        if (!ticket.recurring) {
           db.prepare(
             "UPDATE ticket SET done = datetime('now', 'localtime') WHERE id = ?"
           ).run(existing.ticket_id);

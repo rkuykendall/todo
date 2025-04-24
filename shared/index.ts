@@ -14,7 +14,7 @@ export interface Ticket {
   id: string;
   title: string;
   created_at: string;
-  done_on_child_done: boolean;
+  recurring: boolean;
   done: string | null;
   last_drawn: string | null;
   deadline: string | null;

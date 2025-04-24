@@ -146,9 +146,9 @@ function App() {
   const filteredTickets = tickets.filter((ticket) => {
     switch (ticketFilter) {
       case 'tasks':
-        return !ticket.done && ticket.done_on_child_done;
+        return !ticket.done && !ticket.recurring;
       case 'recurring':
-        return !ticket.done && !ticket.done_on_child_done;
+        return !ticket.done && ticket.recurring;
       case 'done':
         return !!ticket.done;
       default:

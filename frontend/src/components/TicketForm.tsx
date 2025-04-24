@@ -14,7 +14,7 @@ interface TicketFormProps {
   onCancel: () => void;
 }
 
-type FormValues = Pick<Ticket, 'title' | 'done_on_child_done' | 'frequency'> & {
+type FormValues = Pick<Ticket, 'title' | 'recurring' | 'frequency'> & {
   deadline: string | null;
 } & {
   [P in
@@ -24,7 +24,7 @@ type FormValues = Pick<Ticket, 'title' | 'done_on_child_done' | 'frequency'> & {
 
 const emptyValues: FormValues = {
   title: '',
-  done_on_child_done: true,
+  recurring: false,
   deadline: null,
   frequency: 1,
   ...Object.fromEntries(
@@ -54,8 +54,7 @@ function TicketForm({
     if (open) {
       form.setFieldsValue({
         title: initialValues.title ?? emptyValues.title,
-        done_on_child_done:
-          initialValues.done_on_child_done ?? emptyValues.done_on_child_done,
+        recurring: initialValues.recurring ?? emptyValues.recurring,
         deadline: initialValues.deadline || null,
         frequency: initialValues.frequency ?? emptyValues.frequency,
         ...Object.fromEntries(
@@ -127,12 +126,8 @@ function TicketForm({
           />
         </Form.Item>
 
-        <Form.Item
-          name="done_on_child_done"
-          valuePropName="checked"
-          label="Done when child is done"
-        >
-          <Switch title="Done when all draws are done" />
+        <Form.Item name="recurring" valuePropName="checked" label="Recurring">
+          <Switch title="Ticket is recurring" />
         </Form.Item>
 
         <Form.Item

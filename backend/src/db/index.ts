@@ -78,7 +78,7 @@ function createSchema(db: Database.Database): void {
       id TEXT PRIMARY KEY,
       created_at DATETIME DEFAULT (CURRENT_TIMESTAMP_CT()),
       title TEXT NOT NULL,
-      done_on_child_done BOOLEAN DEFAULT 1,
+      recurring BOOLEAN DEFAULT 0,
       done DATETIME,
       last_drawn DATETIME,
       deadline DATETIME,

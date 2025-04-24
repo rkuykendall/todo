@@ -3,7 +3,7 @@ import { dayFields } from '@todo/shared';
 
 export const NewTicketSchema = z.object({
   title: z.string().min(1, 'Title is required'),
-  done_on_child_done: z.boolean().optional().default(true),
+  recurring: z.boolean().optional().default(false),
   done: z.string().datetime().optional().nullable(),
   last_drawn: z.string().datetime().optional().nullable(),
   deadline: z.string().datetime().optional().nullable(),
