@@ -309,53 +309,93 @@ function selectTicketsForDraw(
 ): RawDbTicket[] {
   const today = getTodayDate();
 
-  // Get must-draw tickets first, respecting frequency and done status
-  const mustDrawTickets = db
+  // First, prioritize tickets with deadline today or in the past
+  const deadlineTickets = db
     .prepare(
       `
       SELECT * FROM ticket 
-      WHERE must_draw_${todayDay} = 1
+      WHERE can_draw_${todayDay} = 1
       AND done IS NULL
-      AND (
-        last_drawn IS NULL 
-        OR julianday(?) - julianday(last_drawn) >= (frequency - 1)
-      )
-      ORDER BY last_drawn ASC NULLS FIRST, created_at ASC
-    `
+      AND deadline IS NOT NULL
+      AND date(deadline) <= date(?)
+      ORDER BY date(deadline) ASC, last_drawn ASC NULLS FIRST, created_at ASC
+      `
     )
     .all(today) as RawDbTicket[];
 
-  // Get eligible can-draw tickets, respecting frequency and done status
-  const canDrawTickets = db
-    .prepare(
-      `SELECT * FROM ticket 
-      WHERE can_draw_${todayDay} = 1 
-      AND must_draw_${todayDay} = 0
-      AND done IS NULL
-      AND (
-        last_drawn IS NULL 
-        OR julianday(?) - julianday(last_drawn) >= (frequency - 1)
-      )
-      ORDER BY last_drawn ASC NULLS FIRST, created_at ASC`
+  // Second, get must-draw tickets, respecting frequency and done status
+  const mustDrawQuery = `
+    SELECT * FROM ticket 
+    WHERE must_draw_${todayDay} = 1
+    AND done IS NULL
+    AND (deadline IS NULL OR date(deadline) > date(?))
+    AND (
+      last_drawn IS NULL 
+      OR julianday(?) - julianday(last_drawn) >= (frequency - 1)
     )
-    .all(today) as RawDbTicket[];
+    ORDER BY last_drawn ASC NULLS FIRST, created_at ASC
+  `;
+  const mustDrawTickets = db
+    .prepare(mustDrawQuery)
+    .all(today, today) as RawDbTicket[];
+
+  // Third, get approaching deadline tickets (within next 7 days)
+  const approachingQuery = `
+    SELECT * FROM ticket 
+    WHERE can_draw_${todayDay} = 1 
+    AND must_draw_${todayDay} = 0
+    AND done IS NULL
+    AND deadline IS NOT NULL
+    AND date(deadline) > date(?)
+    AND julianday(deadline) - julianday(?) <= 7
+    AND (
+      last_drawn IS NULL 
+      OR julianday(?) - julianday(last_drawn) >= (frequency - 1)
+    )
+    ORDER BY date(deadline) ASC, last_drawn ASC NULLS FIRST, created_at ASC
+  `;
+  const approachingDeadlineTickets = db
+    .prepare(approachingQuery)
+    .all(today, today, today) as RawDbTicket[];
+
+  // Finally, get eligible can-draw tickets without deadline constraints
+  const canDrawQuery = `
+    SELECT * FROM ticket 
+    WHERE can_draw_${todayDay} = 1 
+    AND must_draw_${todayDay} = 0
+    AND done IS NULL
+    AND (deadline is NULL OR julianday(deadline) - julianday(?) > 7)
+    AND (
+      last_drawn IS NULL 
+      OR julianday(?) - julianday(last_drawn) >= (frequency - 1)
+    )
+    ORDER BY last_drawn ASC NULLS FIRST, created_at ASC
+  `;
+  const canDrawTickets = db
+    .prepare(canDrawQuery)
+    .all(today, today) as RawDbTicket[];
 
   // Filter out tickets that already have draws
-  const selectedTickets = [...mustDrawTickets];
-  const remainingCanDraw = canDrawTickets.filter(
-    (t) => !existingTicketIds.has(t.id)
-  );
+  // Start with highest priority tickets first
+  const selectedTickets: RawDbTicket[] = [];
 
-  // Add remaining tickets in order (no random selection)
-  while (
-    selectedTickets.length + existingTicketIds.size < 5 &&
-    remainingCanDraw.length > 0
-  ) {
-    const nextTicket = remainingCanDraw.shift();
-    if (nextTicket) {
-      selectedTickets.push(nextTicket);
+  // Add tickets in order of priority until we fill up the available spots
+  const addUniqueTickets = (tickets: RawDbTicket[]) => {
+    for (const ticket of tickets) {
+      if (
+        !existingTicketIds.has(ticket.id) &&
+        selectedTickets.length + existingTicketIds.size < 5
+      ) {
+        selectedTickets.push(ticket);
+      }
     }
-  }
+  };
+
+  // Add tickets in prioritized order
+  addUniqueTickets(deadlineTickets);
+  addUniqueTickets(mustDrawTickets);
+  addUniqueTickets(approachingDeadlineTickets);
+  addUniqueTickets(canDrawTickets);
 
   return selectedTickets;
 }

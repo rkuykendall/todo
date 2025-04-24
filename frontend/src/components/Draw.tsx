@@ -3,17 +3,19 @@ import type { TicketDraw } from '../drawSlice';
 import Button from './Button';
 import Card from './Card';
 import ColorIcon from './ColorIcon';
-import { Alert, Typography } from 'antd';
+import { Alert, Typography, Tag } from 'antd';
 import {
   UndoOutlined,
   CheckOutlined,
   CloseOutlined,
   HourglassOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
+import { formatDate } from '../utils';
 
 interface DrawCardProps {
   draw: TicketDraw;
@@ -63,6 +65,20 @@ const triggerConfetti = () => {
   });
 };
 
+function getDeadlineTagColor(deadline: string | null): string {
+  if (!deadline) return 'default';
+
+  const now = new Date();
+  const deadlineDate = new Date(deadline);
+  const diffMs = deadlineDate.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return 'error'; // Overdue
+  if (diffDays <= 2) return 'warning'; // Due very soon
+  if (diffDays <= 7) return 'orange'; // Due this week
+  return 'blue'; // Future deadline
+}
+
 export function DrawCard({
   draw,
   ticket,
@@ -80,6 +96,11 @@ export function DrawCard({
     onMarkDone(draw.id);
     triggerConfetti();
   };
+
+  const hasDeadline = ticket?.deadline && !ticket.done;
+  const deadlineColor = hasDeadline
+    ? getDeadlineTagColor(ticket.deadline)
+    : undefined;
 
   return (
     <AnimatePresence>
@@ -161,6 +182,14 @@ export function DrawCard({
         >
           {ticket?.title && (
             <Typography.Title level={5}>{ticket.title}</Typography.Title>
+          )}
+
+          {hasDeadline && (
+            <div style={{ marginTop: '8px', marginBottom: '8px' }}>
+              <Tag color={deadlineColor}>
+                <CalendarOutlined /> {formatDate(ticket.deadline)}
+              </Tag>
+            </div>
           )}
 
           {error && <Alert message={error} type="error" />}

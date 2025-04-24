@@ -6,11 +6,19 @@ import {
   EditOutlined,
   DeleteOutlined,
   CheckCircleOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons';
 import { formatDate, formatAge } from '../utils';
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState, AppDispatch } from '../store';
-import { Space, Typography, Popconfirm, List, Card as AntCard } from 'antd';
+import {
+  Space,
+  Typography,
+  Popconfirm,
+  List,
+  Card as AntCard,
+  Tag,
+} from 'antd';
 import { updateTicket } from '../ticketSlice';
 
 interface TicketCardProps {
@@ -30,12 +38,31 @@ export const SimpleTicketList = ({ tickets }: { tickets: Ticket[] }) => {
         renderItem={(ticket) => (
           <List.Item>
             <Typography.Text>{ticket.title}</Typography.Text>
+            {ticket.deadline && (
+              <Tag color={getDeadlineTagColor(ticket.deadline)}>
+                <CalendarOutlined /> {formatDate(ticket.deadline)}
+              </Tag>
+            )}
           </List.Item>
         )}
       />
     </AntCard>
   );
 };
+
+function getDeadlineTagColor(deadline: string | null): string {
+  if (!deadline) return 'default';
+
+  const now = new Date();
+  const deadlineDate = new Date(deadline);
+  const diffMs = deadlineDate.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return 'error'; // Overdue
+  if (diffDays <= 2) return 'warning'; // Due very soon
+  if (diffDays <= 7) return 'orange'; // Due this week
+  return 'blue'; // Future deadline
+}
 
 export const TicketCard = ({
   ticket,
@@ -110,7 +137,13 @@ export const TicketCard = ({
         </Space>
       </div>
 
-      {ticket.deadline && <div>Deadline: {formatDate(ticket.deadline)}</div>}
+      {ticket.deadline && (
+        <div style={{ marginTop: '8px' }}>
+          <Tag color={getDeadlineTagColor(ticket.deadline)}>
+            <CalendarOutlined /> Deadline: {formatDate(ticket.deadline)}
+          </Tag>
+        </div>
+      )}
 
       {ticket.done && <div>Done: {formatDate(ticket.done)}</div>}
     </Card>

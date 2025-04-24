@@ -121,7 +121,9 @@ function TicketForm({
           <DatePicker
             allowClear={true}
             format="YYYY-MM-DD"
-            getPopupContainer={(trigger) => trigger.parentElement}
+            getPopupContainer={(trigger) =>
+              trigger.parentElement as HTMLElement
+            }
           />
         </Form.Item>
 
