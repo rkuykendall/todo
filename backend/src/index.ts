@@ -2,6 +2,7 @@ import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
+import rateLimit from 'express-rate-limit';
 import db from './db/index.ts';
 import { dayFields, formatDateISO } from '@todo/shared';
 import type { Day, Ticket } from '@todo/shared';
@@ -10,10 +11,70 @@ import { PatchTicketDrawSchema, type TicketDraw } from './types/ticket_draw.ts';
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(
+  express.json({
+    verify: (_req, _res, buf) => {
+      try {
+        JSON.parse(buf.toString());
+      } catch {
+        // Need to throw an error to stop the request processing
+        // We can't properly respond here due to Express typing limitations
+        throw new Error('Invalid JSON in request body');
+      }
+    },
+  })
+);
+
+// Configure rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minute window
+  limit: 100, // limit each IP to 100 requests per windowMs
+  standardHeaders: 'draft-7', // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  message: { error: 'Too many requests, please try again later.' },
+});
+
+// Apply rate limiting to all routes
+app.use(apiLimiter);
+
+// Request logging middleware
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const start = Date.now();
+  const requestId = uuidv4().slice(0, 8);
+
+  console.log(`[${requestId}] ${req.method} ${req.path} started`);
+
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(
+      `[${requestId}] ${req.method} ${req.path} ${res.statusCode} - ${duration}ms`
+    );
+  });
+
+  next();
+});
 
 // Add basic authentication
 const AUTH_PASSWORD = process.env.AUTH_PASSWORD || 'default-password';
+
+// URL parameter validation middleware
+const validateIdParam = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  const id = req.params.id;
+
+  // Check if the ID parameter exists and has the right format (UUID)
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!id || !uuidRegex.test(id)) {
+    res.status(400).json({ error: 'Invalid ID format' });
+    return;
+  }
+
+  next();
+};
 
 function basicAuth(req: Request, res: Response, next: NextFunction) {
   // Skip auth for OPTIONS requests (CORS preflight)
@@ -51,7 +112,7 @@ type AsyncRequestHandler = (
   req: Request,
   res: Response,
   next: NextFunction
-) => Promise<void> | void;
+) => Promise<void>;
 
 // Raw database types with numbers instead of booleans
 type RawDbTicket = {
@@ -147,113 +208,137 @@ function denormalizeTicket(input: Partial<Ticket>): Record<string, unknown> {
   return result;
 }
 
-const getTickets: AsyncRequestHandler = (_req, res) => {
-  const raw = db.prepare('SELECT * FROM ticket').all() as RawDbTicket[];
-  const normalized = raw.map(normalizeTicket);
-  res.json(normalized);
-  return;
+const getTickets: AsyncRequestHandler = async (_req, res, next) => {
+  try {
+    const raw = db.prepare('SELECT * FROM ticket').all() as RawDbTicket[];
+    const normalized = raw.map(normalizeTicket);
+    res.json(normalized);
+  } catch (error) {
+    next(error);
+  }
 };
 
-const getTicketById: AsyncRequestHandler = (req, res) => {
-  const ticket = db
-    .prepare('SELECT * FROM ticket WHERE id = ?')
-    .get(req.params.id) as RawDbTicket | undefined;
-  if (!ticket) {
-    res.status(404).json({ error: 'Ticket not found' });
-    return;
+const getTicketById: AsyncRequestHandler = async (req, res, next) => {
+  try {
+    const ticket = db
+      .prepare('SELECT * FROM ticket WHERE id = ?')
+      .get(req.params.id) as RawDbTicket | undefined;
+    if (!ticket) {
+      res.status(404).json({ error: 'Ticket not found' });
+      return;
+    }
+    res.json(normalizeTicket(ticket));
+  } catch (error) {
+    next(error);
   }
-  res.json(normalizeTicket(ticket));
-  return;
 };
 
-const createTicket: AsyncRequestHandler = (req, res) => {
-  const result = NewTicketSchema.safeParse(req.body);
-  if (!result.success) {
-    res.status(400).json({ error: result.error.flatten() });
-    return;
+const createTicket: AsyncRequestHandler = async (req, res, next) => {
+  try {
+    const result = NewTicketSchema.safeParse(req.body);
+    if (!result.success) {
+      res.status(400).json({ error: result.error.flatten() });
+      return;
+    }
+
+    const data = result.data;
+    const id = uuidv4();
+
+    const columns = [
+      'id',
+      'title',
+      'done_on_child_done',
+      'done',
+      'last_drawn',
+      'deadline',
+      'frequency',
+      ...dayFields.flatMap((day) => [`can_draw_${day}`, `must_draw_${day}`]),
+    ];
+
+    const values = [
+      id,
+      data.title,
+      Number(data.done_on_child_done ?? false),
+      data.done ?? null,
+      data.last_drawn ?? null,
+      data.deadline ?? null,
+      data.frequency ?? 1,
+      ...dayFields.flatMap((day) => [
+        Number(!!data[`can_draw_${day}` as keyof typeof data]),
+        Number(!!data[`must_draw_${day}` as keyof typeof data]),
+      ]),
+    ];
+
+    const placeholders = columns.map(() => '?').join(', ');
+    const statement = `INSERT INTO ticket (${columns.join(', ')}) VALUES (${placeholders})`;
+
+    // Use transaction for database write
+    db.transaction(() => {
+      db.prepare(statement).run(...values);
+    })();
+
+    res.status(201).json({ id });
+  } catch (error) {
+    next(error);
   }
-
-  const data = result.data;
-  const id = uuidv4();
-
-  const columns = [
-    'id',
-    'title',
-    'done_on_child_done',
-    'done',
-    'last_drawn',
-    'deadline',
-    'frequency',
-    ...dayFields.flatMap((day) => [`can_draw_${day}`, `must_draw_${day}`]),
-  ];
-
-  const values = [
-    id,
-    data.title,
-    Number(data.done_on_child_done ?? false),
-    data.done ?? null,
-    data.last_drawn ?? null,
-    data.deadline ?? null,
-    data.frequency ?? 1,
-    ...dayFields.flatMap((day) => [
-      Number(!!data[`can_draw_${day}` as keyof typeof data]),
-      Number(!!data[`must_draw_${day}` as keyof typeof data]),
-    ]),
-  ];
-
-  const placeholders = columns.map(() => '?').join(', ');
-  const statement = `INSERT INTO ticket (${columns.join(', ')}) VALUES (${placeholders})`;
-
-  db.prepare(statement).run(...values);
-
-  res.status(201).json({ id });
-  return;
 };
 
-const updateTicket: AsyncRequestHandler = (req, res) => {
-  const { id } = req.params;
-  const existing = db.prepare('SELECT * FROM ticket WHERE id = ?').get(id) as
-    | RawDbTicket
-    | undefined;
-  if (!existing) {
-    res.status(404).json({ error: 'Ticket not found' });
-    return;
+const updateTicket: AsyncRequestHandler = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const existing = db.prepare('SELECT * FROM ticket WHERE id = ?').get(id) as
+      | RawDbTicket
+      | undefined;
+    if (!existing) {
+      res.status(404).json({ error: 'Ticket not found' });
+      return;
+    }
+
+    const result = UpdateTicketSchema.safeParse(req.body);
+    if (!result.success) {
+      res.status(400).json({ error: result.error.flatten() });
+      return;
+    }
+
+    const updates = denormalizeTicket(result.data);
+
+    const updateKeys = Object.keys(updates);
+    if (updateKeys.length === 0) {
+      res.status(400).json({ error: 'No valid fields to update' });
+      return;
+    }
+
+    const setClause = updateKeys.map((key) => `${key} = ?`).join(', ');
+    const updateStmt = db.prepare(
+      `UPDATE ticket SET ${setClause} WHERE id = ?`
+    );
+
+    // Use transaction for the update
+    db.transaction(() => {
+      updateStmt.run(...updateKeys.map((k) => updates[k]), id);
+    })();
+
+    const updated = db
+      .prepare('SELECT * FROM ticket WHERE id = ?')
+      .get(id) as RawDbTicket;
+    res.json(normalizeTicket(updated));
+  } catch (error) {
+    next(error);
   }
-
-  const result = UpdateTicketSchema.safeParse(req.body);
-  if (!result.success) {
-    res.status(400).json({ error: result.error.flatten() });
-    return;
-  }
-
-  const updates = denormalizeTicket(result.data);
-
-  const updateKeys = Object.keys(updates);
-  if (updateKeys.length === 0) {
-    res.status(400).json({ error: 'No valid fields to update' });
-    return;
-  }
-
-  const setClause = updateKeys.map((key) => `${key} = ?`).join(', ');
-  const updateStmt = db.prepare(`UPDATE ticket SET ${setClause} WHERE id = ?`);
-  updateStmt.run(...updateKeys.map((k) => updates[k]), id);
-
-  const updated = db
-    .prepare('SELECT * FROM ticket WHERE id = ?')
-    .get(id) as RawDbTicket;
-  res.json(normalizeTicket(updated));
-  return;
 };
 
-const deleteTicket: AsyncRequestHandler = (req, res) => {
-  const { id } = req.params;
-  const result = db.prepare('DELETE FROM ticket WHERE id = ?').run(id);
-  if (result.changes === 0) {
-    res.status(404).json({ error: 'Ticket not found' });
-    return;
+const deleteTicket: AsyncRequestHandler = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = db.prepare('DELETE FROM ticket WHERE id = ?').run(id);
+    if (result.changes === 0) {
+      res.status(404).json({ error: 'Ticket not found' });
+      return;
+    }
+    res.json({ deleted: true });
+  } catch (error) {
+    next(error);
   }
-  res.json({ deleted: true });
-  return;
 };
 
 // Utility: Get today's lowercase day name (e.g., "wednesday")
@@ -275,16 +360,20 @@ function getTodayDate(): string {
   return formatDateISO(central);
 }
 
-const getTicketDraw: AsyncRequestHandler = (_req, res) => {
-  const today = getTodayDate();
+const getTicketDraw: AsyncRequestHandler = async (_req, res, next) => {
+  try {
+    const today = getTodayDate();
 
-  const draws = db
-    .prepare(
-      "SELECT * FROM ticket_draw WHERE DATE(datetime(created_at, 'localtime')) = ?"
-    )
-    .all(today) as RawDbDraw[];
+    const draws = db
+      .prepare(
+        "SELECT * FROM ticket_draw WHERE DATE(datetime(created_at, 'localtime')) = ?"
+      )
+      .all(today) as RawDbDraw[];
 
-  res.json(draws.map(normalizeDraw));
+    res.json(draws.map(normalizeDraw));
+  } catch (error) {
+    next(error);
+  }
   return;
 };
 
@@ -426,7 +515,7 @@ function createDrawsForTickets(
   };
 }
 
-const createTicketDraw: AsyncRequestHandler = (_req, res) => {
+const createTicketDraw: AsyncRequestHandler = async (_req, res, next) => {
   try {
     const today = getTodayDate();
     const todayDay = getTodayDayString();
@@ -439,7 +528,16 @@ const createTicketDraw: AsyncRequestHandler = (_req, res) => {
 
     // Select and create new draws
     const selectedTickets = selectTicketsForDraw(todayDay, existingTicketIds);
-    const result = createDrawsForTickets(selectedTickets, existingTicketIds);
+
+    // Use transaction for multiple database operations
+    let result: TicketDrawResult = {
+      addedDraws: 0,
+      totalDraws: existingTicketIds.size,
+    };
+
+    db.transaction(() => {
+      result = createDrawsForTickets(selectedTickets, existingTicketIds);
+    })();
 
     if (result.addedDraws === 0 && result.totalDraws < 5) {
       res.status(400).json({
@@ -456,85 +554,144 @@ const createTicketDraw: AsyncRequestHandler = (_req, res) => {
 
     res.status(201).json(todaysDraws.map(normalizeDraw));
   } catch (error) {
-    console.error('Error creating ticket draw:', error);
-    res
-      .status(500)
-      .json({ error: 'Internal server error creating ticket draw' });
+    next(error);
   }
-  return;
 };
 
-const updateTicketDraw: AsyncRequestHandler = (req, res) => {
-  const { id } = req.params;
+const updateTicketDraw: AsyncRequestHandler = async (req, res, next) => {
+  try {
+    const { id } = req.params;
 
-  const parse = PatchTicketDrawSchema.safeParse(req.body);
-  if (!parse.success) {
-    res.status(400).json({ error: parse.error.flatten() });
-    return;
-  }
-
-  const updates = parse.data;
-  if (Object.keys(updates).length === 0) {
-    res.status(400).json({ error: 'No valid fields to update.' });
-    return;
-  }
-
-  const existing = db
-    .prepare('SELECT * FROM ticket_draw WHERE id = ?')
-    .get(id) as RawDbDraw | undefined;
-  if (!existing) {
-    res.status(404).json({ error: 'ticket_draw not found.' });
-    return;
-  }
-
-  const setClause = Object.keys(updates)
-    .map((key) => `${key} = ?`)
-    .join(', ');
-  const updateStmt = db.prepare(
-    `UPDATE ticket_draw SET ${setClause} WHERE id = ?`
-  );
-  const coercedValues = Object.values(updates).map((val) =>
-    typeof val === 'boolean' ? Number(val) : val
-  );
-  updateStmt.run(...coercedValues, id);
-
-  // Only mark the parent ticket as done if the draw is marked as done (not skipped)
-  if (updates.done === true) {
-    const ticket = db
-      .prepare('SELECT * FROM ticket WHERE id = ?')
-      .get(existing.ticket_id) as RawDbTicket;
-
-    if (ticket.done_on_child_done) {
-      db.prepare(
-        "UPDATE ticket SET done = datetime('now', 'localtime') WHERE id = ?"
-      ).run(existing.ticket_id);
+    const parse = PatchTicketDrawSchema.safeParse(req.body);
+    if (!parse.success) {
+      res.status(400).json({ error: parse.error.flatten() });
+      return;
     }
+
+    const updates = parse.data;
+    if (Object.keys(updates).length === 0) {
+      res.status(400).json({ error: 'No valid fields to update.' });
+      return;
+    }
+
+    const existing = db
+      .prepare('SELECT * FROM ticket_draw WHERE id = ?')
+      .get(id) as RawDbDraw | undefined;
+    if (!existing) {
+      res.status(404).json({ error: 'ticket_draw not found.' });
+      return;
+    }
+
+    const setClause = Object.keys(updates)
+      .map((key) => `${key} = ?`)
+      .join(', ');
+    const updateStmt = db.prepare(
+      `UPDATE ticket_draw SET ${setClause} WHERE id = ?`
+    );
+    const coercedValues = Object.values(updates).map((val) =>
+      typeof val === 'boolean' ? Number(val) : val
+    );
+
+    // Use transaction for the update
+    db.transaction(() => {
+      updateStmt.run(...coercedValues, id);
+
+      // Only mark the parent ticket as done if the draw is marked as done (not skipped)
+      if (updates.done === true) {
+        const ticket = db
+          .prepare('SELECT * FROM ticket WHERE id = ?')
+          .get(existing.ticket_id) as RawDbTicket;
+
+        if (ticket.done_on_child_done) {
+          db.prepare(
+            "UPDATE ticket SET done = datetime('now', 'localtime') WHERE id = ?"
+          ).run(existing.ticket_id);
+        }
+      }
+    })();
+
+    const updated = db
+      .prepare('SELECT * FROM ticket_draw WHERE id = ?')
+      .get(id) as RawDbDraw;
+    res.json(normalizeDraw(updated));
+  } catch (error) {
+    next(error);
   }
-
-  const updated = db
-    .prepare('SELECT * FROM ticket_draw WHERE id = ?')
-    .get(id) as RawDbDraw;
-  res.json(normalizeDraw(updated));
-  return;
 };
 
-const deleteAllDraws: AsyncRequestHandler = (_req, res) => {
-  const result = db.prepare('DELETE FROM ticket_draw').run();
-  res.json({ deleted: true, count: result.changes });
-  return;
+const deleteAllDraws: AsyncRequestHandler = async (_req, res, next) => {
+  try {
+    const result = db.prepare('DELETE FROM ticket_draw').run();
+    res.json({ deleted: true, count: result.changes });
+  } catch (error) {
+    next(error);
+  }
 };
+
+// Health check endpoint that verifies database connectivity
+app.get('/health', async (_req, res) => {
+  try {
+    // Simple query to check database connectivity
+    db.prepare('SELECT 1').get();
+    res.json({ status: 'ok', database: 'connected' });
+  } catch (error) {
+    console.error('Health check failed:', error);
+    res.status(500).json({
+      status: 'error',
+      database: 'disconnected',
+      message: 'Database connection failed',
+    });
+  }
+});
 
 app.get('/tickets', getTickets);
-app.get('/tickets/:id', getTicketById);
+app.get('/tickets/:id', validateIdParam, getTicketById);
 app.post('/tickets', createTicket);
-app.put('/tickets/:id', updateTicket);
-app.delete('/tickets/:id', deleteTicket);
+app.put('/tickets/:id', validateIdParam, updateTicket);
+app.delete('/tickets/:id', validateIdParam, deleteTicket);
 app.get('/ticket_draw', getTicketDraw);
 app.post('/ticket_draw', createTicketDraw);
-app.patch('/ticket_draw/:id', updateTicketDraw);
+app.patch('/ticket_draw/:id', validateIdParam, updateTicketDraw);
 app.delete('/ticket_draw', deleteAllDraws);
 
+// Global error handler middleware
+app.use((err: Error, _req: Request, res: Response) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? err.message : undefined,
+  });
+});
+
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+// Graceful shutdown handling
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  server.close(() => {
+    console.log('HTTP server closed');
+    // Close database connection if needed
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT signal received: closing HTTP server');
+  server.close(() => {
+    console.log('HTTP server closed');
+    // Close database connection if needed
+    process.exit(0);
+  });
+});
+
+// Uncaught exception handler
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  server.close(() => {
+    console.log('HTTP server closed due to uncaught exception');
+    process.exit(1);
+  });
 });
