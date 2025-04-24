@@ -1,5 +1,5 @@
 import type { Ticket } from '@todo/shared';
-import { dayFields, formatDateISO } from '@todo/shared';
+import { dayFields } from '@todo/shared';
 import { useEffect, useRef } from 'react';
 import { Form, Input, Checkbox, Space, Modal, Switch, DatePicker } from 'antd';
 import type { InputRef } from 'antd';
@@ -119,9 +119,9 @@ function TicketForm({
 
         <Form.Item name="deadline" label="Deadline">
           <DatePicker
-            onChange={(date) => {
-              form.setFieldValue('deadline', formatDateISO(date));
-            }}
+            allowClear={true}
+            format="YYYY-MM-DD"
+            getPopupContainer={(trigger) => trigger.parentElement}
           />
         </Form.Item>
 
