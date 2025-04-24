@@ -211,9 +211,9 @@ function App() {
                   okText="Yes"
                   cancelText="No"
                 >
-                  <Button block={!screens.sm} type="text" danger>
+                  {/* <Button block={!screens.sm} type="text" danger>
                     Clear Draws
-                  </Button>
+                  </Button> */}
                 </Popconfirm>
                 <Button block={!screens.sm} onClick={handleLogout} type="text">
                   Logout
