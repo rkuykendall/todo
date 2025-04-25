@@ -102,6 +102,9 @@ export function DrawCard({
     ? getDeadlineTagColor(ticket.deadline)
     : undefined;
 
+  // Define status for animation purposes
+  const status = draw.done ? 'done' : draw.skipped ? 'skipped' : 'pending';
+
   return (
     <AnimatePresence>
       <motion.div
@@ -110,11 +113,15 @@ export function DrawCard({
           rotateY: draw.done ? 360 : 0,
           scale: draw.skipped ? 0.95 : 1,
         }}
+        layout // Enable automatic layout animations
+        layoutId={`draw-${draw.id}`} // Unique ID for each draw
         transition={{
           type: 'spring',
           stiffness: 200,
           damping: 20,
+          layout: { type: 'spring', damping: 25, stiffness: 120 },
         }}
+        data-status={status} // Add status as data attribute for styling
       >
         <Card
           index={index}

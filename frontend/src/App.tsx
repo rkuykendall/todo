@@ -143,6 +143,20 @@ function App() {
     return <Login onLogin={handleLogin} error={loginError} />;
   }
 
+  // Sort draws by status: pending first, then done, then skipped
+  const sortedDraws = [...draws].sort((a, b) => {
+    // Pending draws (neither done nor skipped)
+    if (!a.done && !a.skipped && (b.done || b.skipped)) return -1;
+    if (!b.done && !b.skipped && (a.done || a.skipped)) return 1;
+
+    // Done draws before skipped draws
+    if (a.done && b.skipped) return -1;
+    if (b.done && a.skipped) return 1;
+
+    // Keep original order within each status group
+    return 0;
+  });
+
   const filteredTickets = tickets.filter((ticket) => {
     switch (ticketFilter) {
       case 'tasks':
@@ -271,7 +285,7 @@ function App() {
                 block={!screens.sm}
                 desktop
               >
-                {draws.map((draw, index) => (
+                {sortedDraws.map((draw, index) => (
                   <DrawCard
                     draw={draw}
                     key={draw.id}
