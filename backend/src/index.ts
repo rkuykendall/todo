@@ -407,7 +407,7 @@ function selectTicketsForDraw(
       AND done IS NULL
       AND deadline IS NOT NULL
       AND date(deadline) <= date(?)
-      ORDER BY date(deadline) ASC, last_drawn ASC NULLS FIRST, created_at ASC
+      ORDER BY date(deadline) ASC, last_drawn ASC NULLS FIRST, RANDOM()
       `
     )
     .all(today) as RawDbTicket[];
@@ -422,7 +422,7 @@ function selectTicketsForDraw(
       last_drawn IS NULL 
       OR julianday(?) - julianday(last_drawn) >= (frequency - 1)
     )
-    ORDER BY last_drawn ASC NULLS FIRST, created_at ASC
+    ORDER BY last_drawn ASC NULLS FIRST, RANDOM()
   `;
   const mustDrawTickets = db
     .prepare(mustDrawQuery)
@@ -441,7 +441,7 @@ function selectTicketsForDraw(
       last_drawn IS NULL 
       OR julianday(?) - julianday(last_drawn) >= (frequency - 1)
     )
-    ORDER BY date(deadline) ASC, last_drawn ASC NULLS FIRST, created_at ASC
+    ORDER BY date(deadline) ASC, last_drawn ASC NULLS FIRST, RANDOM()
   `;
   const approachingDeadlineTickets = db
     .prepare(approachingQuery)
@@ -458,7 +458,7 @@ function selectTicketsForDraw(
       last_drawn IS NULL 
       OR julianday(?) - julianday(last_drawn) >= (frequency - 1)
     )
-    ORDER BY last_drawn ASC NULLS FIRST, created_at ASC
+    ORDER BY last_drawn ASC NULLS FIRST, RANDOM()
   `;
   const canDrawTickets = db
     .prepare(canDrawQuery)
