@@ -392,11 +392,72 @@ interface TicketDrawResult {
   totalDraws: number;
 }
 
+/**
+ * Calculates the number of tickets to draw based on completion rate in past week
+ * Returns a value between 5-10: 5 if few tickets completed, 10 if many completed
+ */
+function calculateDailyDrawCount(): number {
+  // Get one-week-ago date
+  const today = new Date();
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(today.getDate() - 7);
+
+  const todayISO = formatDateISO(today);
+  const oneWeekAgoISO = formatDateISO(oneWeekAgo);
+
+  // Count completed draws in the past week
+  const completedDraws = db
+    .prepare(
+      `
+    SELECT COUNT(*) as count 
+    FROM ticket_draw 
+    WHERE done = 1 
+    AND datetime(created_at) BETWEEN datetime(?) AND datetime(?)
+  `
+    )
+    .get(oneWeekAgoISO, todayISO) as { count: number };
+
+  // Count total draws in the past week
+  const totalDraws = db
+    .prepare(
+      `
+    SELECT COUNT(*) as count 
+    FROM ticket_draw 
+    WHERE datetime(created_at) BETWEEN datetime(?) AND datetime(?)
+  `
+    )
+    .get(oneWeekAgoISO, todayISO) as { count: number };
+
+  // Calculate completion rate with better default handling
+  let drawCount = 5; // Default minimum if no data
+
+  if (totalDraws.count > 0) {
+    // If we have data, calculate based on completion rate
+    const completionRate = completedDraws.count / totalDraws.count;
+    const minDrawCount = 5;
+    const maxDrawCount = 10;
+    drawCount = Math.round(
+      minDrawCount + completionRate * (maxDrawCount - minDrawCount)
+    );
+    console.log(
+      `Daily draw count: ${drawCount} (based on ${completedDraws.count}/${totalDraws.count} completed in past week)`
+    );
+  } else {
+    // No draw data from past week, use minimum value
+    console.log(
+      `Daily draw count: ${drawCount} (default - no ticket data from past week)`
+    );
+  }
+
+  return drawCount;
+}
+
 function selectTicketsForDraw(
   todayDay: string,
   existingTicketIds: Set<string>
 ): RawDbTicket[] {
   const today = getTodayDate();
+  const maxDrawCount = calculateDailyDrawCount();
 
   // First, prioritize tickets with deadline today or in the past
   const deadlineTickets = db
@@ -473,7 +534,7 @@ function selectTicketsForDraw(
     for (const ticket of tickets) {
       if (
         !existingTicketIds.has(ticket.id) &&
-        selectedTickets.length + existingTicketIds.size < 5
+        selectedTickets.length + existingTicketIds.size < maxDrawCount
       ) {
         selectedTickets.push(ticket);
       }
