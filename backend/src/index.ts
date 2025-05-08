@@ -474,16 +474,26 @@ function selectTicketsForDraw(
     .all(today) as RawDbTicket[];
 
   // Second, get must-draw tickets, respecting frequency and done status
+  // Only respect frequency for tickets that were completed, not just drawn
   const mustDrawQuery = `
-    SELECT * FROM ticket 
-    WHERE must_draw_${todayDay} = 1
-    AND done IS NULL
-    AND (deadline IS NULL OR date(deadline) > date(?))
+    SELECT t.* FROM ticket t
+    WHERE t.must_draw_${todayDay} = 1
+    AND t.done IS NULL
+    AND (t.deadline IS NULL OR date(t.deadline) > date(?))
     AND (
-      last_drawn IS NULL 
-      OR julianday(?) - julianday(last_drawn) >= (frequency - 1)
+      t.last_drawn IS NULL
+      OR (
+        -- Check if the ticket was successfully completed in a recent draw
+        -- If not completed (only skipped), ignore frequency and allow it to be drawn again
+        NOT EXISTS (
+          SELECT 1 FROM ticket_draw td
+          WHERE td.ticket_id = t.id
+          AND td.done = 1
+          AND julianday(?) - julianday(td.created_at) < t.frequency
+        )
+      )
     )
-    ORDER BY last_drawn ASC NULLS FIRST, RANDOM()
+    ORDER BY t.last_drawn ASC NULLS FIRST, RANDOM()
   `;
   const mustDrawTickets = db
     .prepare(mustDrawQuery)
@@ -491,18 +501,26 @@ function selectTicketsForDraw(
 
   // Third, get approaching deadline tickets (within next 7 days)
   const approachingQuery = `
-    SELECT * FROM ticket 
-    WHERE can_draw_${todayDay} = 1 
-    AND must_draw_${todayDay} = 0
-    AND done IS NULL
-    AND deadline IS NOT NULL
-    AND date(deadline) > date(?)
-    AND julianday(deadline) - julianday(?) <= 7
+    SELECT t.* FROM ticket t
+    WHERE t.can_draw_${todayDay} = 1 
+    AND t.must_draw_${todayDay} = 0
+    AND t.done IS NULL
+    AND t.deadline IS NOT NULL
+    AND date(t.deadline) > date(?)
+    AND julianday(t.deadline) - julianday(?) <= 7
     AND (
-      last_drawn IS NULL 
-      OR julianday(?) - julianday(last_drawn) >= (frequency - 1)
+      t.last_drawn IS NULL
+      OR (
+        -- Check if the ticket was successfully completed in a recent draw
+        NOT EXISTS (
+          SELECT 1 FROM ticket_draw td
+          WHERE td.ticket_id = t.id
+          AND td.done = 1
+          AND julianday(?) - julianday(td.created_at) < t.frequency
+        )
+      )
     )
-    ORDER BY date(deadline) ASC, last_drawn ASC NULLS FIRST, RANDOM()
+    ORDER BY date(t.deadline) ASC, t.last_drawn ASC NULLS FIRST, RANDOM()
   `;
   const approachingDeadlineTickets = db
     .prepare(approachingQuery)
@@ -510,16 +528,24 @@ function selectTicketsForDraw(
 
   // Finally, get eligible can-draw tickets without deadline constraints
   const canDrawQuery = `
-    SELECT * FROM ticket 
-    WHERE can_draw_${todayDay} = 1 
-    AND must_draw_${todayDay} = 0
-    AND done IS NULL
-    AND (deadline is NULL OR julianday(deadline) - julianday(?) > 7)
+    SELECT t.* FROM ticket t
+    WHERE t.can_draw_${todayDay} = 1 
+    AND t.must_draw_${todayDay} = 0
+    AND t.done IS NULL
+    AND (t.deadline is NULL OR julianday(t.deadline) - julianday(?) > 7)
     AND (
-      last_drawn IS NULL 
-      OR julianday(?) - julianday(last_drawn) >= (frequency - 1)
+      t.last_drawn IS NULL
+      OR (
+        -- Check if the ticket was successfully completed in a recent draw
+        NOT EXISTS (
+          SELECT 1 FROM ticket_draw td
+          WHERE td.ticket_id = t.id
+          AND td.done = 1
+          AND julianday(?) - julianday(td.created_at) < t.frequency
+        )
+      )
     )
-    ORDER BY last_drawn ASC NULLS FIRST, RANDOM()
+    ORDER BY t.last_drawn ASC NULLS FIRST, RANDOM()
   `;
   const canDrawTickets = db
     .prepare(canDrawQuery)
