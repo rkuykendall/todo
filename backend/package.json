@@ -12,7 +12,8 @@
     "lint:fix": "eslint . --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules npx jest",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules npx jest --watch",
-    "check": "npm run format && npm run lint:fix && npm run test"
+    "type-check": "tsc --noEmit",
+    "check": "npm run format && npm run lint:fix && npm run type-check && npm run test"
   },
   "keywords": [],
   "author": "",

@@ -11,6 +11,25 @@ function getTodayDate(): string {
   return formatDateISO(new Date());
 }
 
+// Define types for our test data
+interface TestTicket {
+  id: string;
+  title: string;
+  recurring: number;
+  frequency: number;
+  done: string | null;
+  last_drawn?: string | null;
+  [key: string]: string | number | null | undefined; // Replaced 'any' with specific types
+}
+
+interface TicketDraw {
+  id: string;
+  ticket_id: string;
+  done: number;
+  skipped: number;
+  created_at: string;
+}
+
 // Set up schema for tests - simplified version of your actual schema
 beforeAll(() => {
   // Create tables with only the necessary fields for these tests
@@ -63,7 +82,7 @@ beforeEach(() => {
 });
 
 // Test helper functions
-function createTestTicket(overrides = {}) {
+function createTestTicket(overrides = {}): TestTicket {
   const ticketId = uuidv4();
   const defaults = {
     id: ticketId,
@@ -73,7 +92,7 @@ function createTestTicket(overrides = {}) {
     done: null,
   };
 
-  const ticketData = { ...defaults, ...overrides };
+  const ticketData = { ...defaults, ...overrides } as TestTicket;
   const columns = Object.keys(ticketData);
   const placeholders = columns.map(() => '?').join(', ');
 
@@ -86,8 +105,12 @@ function createTestTicket(overrides = {}) {
 
 function createTicketDraw(
   ticketId: string,
-  { done = 0, skipped = 0, date = null } = {}
-) {
+  {
+    done = 0,
+    skipped = 0,
+    date = null,
+  }: { done?: number; skipped?: number; date?: string | null } = {}
+): TicketDraw {
   const drawId = uuidv4();
   const createdAt = date || new Date().toISOString();
 
@@ -111,7 +134,10 @@ function createTicketDraw(
 }
 
 // Fixed version of the query (using <= operator)
-function isTicketEligibleFixed(ticketId: string, today: string) {
+function isTicketEligibleFixed(
+  ticketId: string,
+  today: string
+): TestTicket | undefined {
   const query = `
     SELECT t.* FROM ticket t
     WHERE t.id = ?
@@ -128,11 +154,14 @@ function isTicketEligibleFixed(ticketId: string, today: string) {
     )
   `;
 
-  return db.prepare(query).get(ticketId, today);
+  return db.prepare(query).get(ticketId, today) as TestTicket | undefined;
 }
 
 // Original broken version of the query (using < operator)
-function isTicketEligibleBroken(ticketId: string, today: string) {
+function isTicketEligibleBroken(
+  ticketId: string,
+  today: string
+): TestTicket | undefined {
   const query = `
     SELECT t.* FROM ticket t
     WHERE t.id = ?
@@ -149,7 +178,7 @@ function isTicketEligibleBroken(ticketId: string, today: string) {
     )
   `;
 
-  return db.prepare(query).get(ticketId, today);
+  return db.prepare(query).get(ticketId, today) as TestTicket | undefined;
 }
 
 describe('Ticket frequency behavior', () => {
@@ -163,7 +192,7 @@ describe('Ticket frequency behavior', () => {
 
     // Assert
     expect(eligibleTicket).not.toBeUndefined();
-    expect(eligibleTicket.id).toBe(ticket.id);
+    expect(eligibleTicket?.id).toBe(ticket.id);
   });
 
   test('ticket is NOT eligible if recently drawn and completed', () => {
@@ -204,7 +233,7 @@ describe('Ticket frequency behavior', () => {
 
     // Assert - Should be eligible since it was only skipped, not completed
     expect(eligibleTicket).not.toBeUndefined();
-    expect(eligibleTicket.id).toBe(ticket.id);
+    expect(eligibleTicket?.id).toBe(ticket.id);
   });
 
   test('ticket IS eligible if drawn and completed outside frequency period', () => {
@@ -225,7 +254,7 @@ describe('Ticket frequency behavior', () => {
 
     // Assert - Should be eligible since frequency period has passed
     expect(eligibleTicket).not.toBeUndefined();
-    expect(eligibleTicket.id).toBe(ticket.id);
+    expect(eligibleTicket?.id).toBe(ticket.id);
   });
 });
 
@@ -289,6 +318,6 @@ describe('Daily ticket frequency behavior', () => {
 
     // Assert - Should be eligible since frequency period (1 day) has passed
     expect(eligibleTicket).not.toBeUndefined();
-    expect(eligibleTicket.id).toBe(ticket.id);
+    expect(eligibleTicket?.id).toBe(ticket.id);
   });
 });
