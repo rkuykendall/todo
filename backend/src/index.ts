@@ -489,7 +489,7 @@ function selectTicketsForDraw(
           SELECT 1 FROM ticket_draw td
           WHERE td.ticket_id = t.id
           AND td.done = 1
-          AND julianday(?) - julianday(td.created_at) < t.frequency
+          AND julianday(?) - julianday(td.created_at) <= t.frequency
         )
       )
     )
@@ -516,7 +516,7 @@ function selectTicketsForDraw(
           SELECT 1 FROM ticket_draw td
           WHERE td.ticket_id = t.id
           AND td.done = 1
-          AND julianday(?) - julianday(td.created_at) < t.frequency
+          AND julianday(?) - julianday(td.created_at) <= t.frequency
         )
       )
     )
@@ -541,7 +541,7 @@ function selectTicketsForDraw(
           SELECT 1 FROM ticket_draw td
           WHERE td.ticket_id = t.id
           AND td.done = 1
-          AND julianday(?) - julianday(td.created_at) < t.frequency
+          AND julianday(?) - julianday(td.created_at) <= t.frequency
         )
       )
     )
