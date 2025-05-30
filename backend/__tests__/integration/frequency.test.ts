@@ -1,7 +1,8 @@
 import Database from 'better-sqlite3';
 import MockDate from 'mockdate';
 import { v4 as uuidv4 } from 'uuid';
-import { formatDateISO } from '@todo/shared';
+import { formatDateISO, type Ticket } from '@todo/shared';
+import type { TicketDraw } from '../src/types/ticket_draw.js';
 
 // Create an in-memory database for testing
 const db = new Database(':memory:');
@@ -9,25 +10,6 @@ const db = new Database(':memory:');
 // Mock date functions that would be in your main code
 function getTodayDate(): string {
   return formatDateISO(new Date());
-}
-
-// Define types for our test data
-interface TestTicket {
-  id: string;
-  title: string;
-  recurring: number;
-  frequency: number;
-  done: string | null;
-  last_drawn?: string | null;
-  [key: string]: string | number | null | undefined; // Replaced 'any' with specific types
-}
-
-interface TicketDraw {
-  id: string;
-  ticket_id: string;
-  done: number;
-  skipped: number;
-  created_at: string;
 }
 
 // Set up schema for tests - simplified version of your actual schema
@@ -82,23 +64,59 @@ beforeEach(() => {
 });
 
 // Test helper functions
-function createTestTicket(overrides = {}): TestTicket {
+function createTestTicket(overrides = {}): Ticket {
   const ticketId = uuidv4();
   const defaults = {
     id: ticketId,
     title: 'Test Ticket',
-    recurring: 0,
+    recurring: false,
     frequency: 7, // Weekly frequency
     done: null,
+    created_at: new Date().toISOString(),
+    last_drawn: null,
+    deadline: null,
+    can_draw_monday: true,
+    must_draw_monday: false,
+    can_draw_tuesday: true,
+    must_draw_tuesday: false,
+    can_draw_wednesday: true,
+    must_draw_wednesday: false,
+    can_draw_thursday: true,
+    must_draw_thursday: false,
+    can_draw_friday: true,
+    must_draw_friday: false,
+    can_draw_saturday: true,
+    must_draw_saturday: false,
+    can_draw_sunday: true,
+    must_draw_sunday: false,
   };
 
-  const ticketData: TestTicket = { ...defaults, ...overrides };
-  const columns = Object.keys(ticketData);
+  const ticketData = { ...defaults, ...overrides } as Ticket;
+
+  // Convert boolean values to numbers for SQLite
+  const dbData = { ...ticketData };
+  (dbData as any).recurring = ticketData.recurring ? 1 : 0;
+  (dbData as any).can_draw_monday = ticketData.can_draw_monday ? 1 : 0;
+  (dbData as any).must_draw_monday = ticketData.must_draw_monday ? 1 : 0;
+  (dbData as any).can_draw_tuesday = ticketData.can_draw_tuesday ? 1 : 0;
+  (dbData as any).must_draw_tuesday = ticketData.must_draw_tuesday ? 1 : 0;
+  (dbData as any).can_draw_wednesday = ticketData.can_draw_wednesday ? 1 : 0;
+  (dbData as any).must_draw_wednesday = ticketData.must_draw_wednesday ? 1 : 0;
+  (dbData as any).can_draw_thursday = ticketData.can_draw_thursday ? 1 : 0;
+  (dbData as any).must_draw_thursday = ticketData.must_draw_thursday ? 1 : 0;
+  (dbData as any).can_draw_friday = ticketData.can_draw_friday ? 1 : 0;
+  (dbData as any).must_draw_friday = ticketData.must_draw_friday ? 1 : 0;
+  (dbData as any).can_draw_saturday = ticketData.can_draw_saturday ? 1 : 0;
+  (dbData as any).must_draw_saturday = ticketData.must_draw_saturday ? 1 : 0;
+  (dbData as any).can_draw_sunday = ticketData.can_draw_sunday ? 1 : 0;
+  (dbData as any).must_draw_sunday = ticketData.must_draw_sunday ? 1 : 0;
+
+  const columns = Object.keys(dbData);
   const placeholders = columns.map(() => '?').join(', ');
 
   db.prepare(
     `INSERT INTO ticket (${columns.join(', ')}) VALUES (${placeholders})`
-  ).run(...Object.values(ticketData));
+  ).run(...Object.values(dbData));
 
   return ticketData;
 }
@@ -106,17 +124,17 @@ function createTestTicket(overrides = {}): TestTicket {
 function createTicketDraw(
   ticketId: string,
   {
-    done = 0,
-    skipped = 0,
+    done = false,
+    skipped = false,
     date = null,
-  }: { done?: number; skipped?: number; date?: string | null } = {}
+  }: { done?: boolean; skipped?: boolean; date?: string | null } = {}
 ): TicketDraw {
   const drawId = uuidv4();
   const createdAt = date || new Date().toISOString();
 
   db.prepare(
     `INSERT INTO ticket_draw (id, created_at, ticket_id, done, skipped) VALUES (?, ?, ?, ?, ?)`
-  ).run(drawId, createdAt, ticketId, done, skipped);
+  ).run(drawId, createdAt, ticketId, done ? 1 : 0, skipped ? 1 : 0);
 
   // Update last_drawn on the ticket
   db.prepare('UPDATE ticket SET last_drawn = ? WHERE id = ?').run(
@@ -137,7 +155,7 @@ function createTicketDraw(
 function isTicketEligibleFixed(
   ticketId: string,
   today: string
-): TestTicket | undefined {
+): Ticket | undefined {
   const query = `
     SELECT t.* FROM ticket t
     WHERE t.id = ?
@@ -154,14 +172,14 @@ function isTicketEligibleFixed(
     )
   `;
 
-  return db.prepare(query).get(ticketId, today) as TestTicket | undefined;
+  return db.prepare(query).get(ticketId, today) as Ticket | undefined;
 }
 
 // Original broken version of the query (using < operator)
 function isTicketEligibleBroken(
   ticketId: string,
   today: string
-): TestTicket | undefined {
+): Ticket | undefined {
   const query = `
     SELECT t.* FROM ticket t
     WHERE t.id = ?
@@ -178,7 +196,7 @@ function isTicketEligibleBroken(
     )
   `;
 
-  return db.prepare(query).get(ticketId, today) as TestTicket | undefined;
+  return db.prepare(query).get(ticketId, today) as Ticket | undefined;
 }
 
 describe('Ticket frequency behavior', () => {
@@ -202,7 +220,7 @@ describe('Ticket frequency behavior', () => {
     const ticket = createTestTicket({ frequency: 7, last_drawn: startDate });
 
     // Create a completed draw from 2 days ago (within frequency period)
-    createTicketDraw(ticket.id, { done: 1, date: startDate });
+    createTicketDraw(ticket.id, { done: true, date: startDate });
 
     // Set date to 2 days later
     MockDate.set('2025-05-03');
@@ -222,7 +240,11 @@ describe('Ticket frequency behavior', () => {
     const ticket = createTestTicket({ frequency: 7, last_drawn: startDate });
 
     // Create a skipped draw from 2 days ago (within frequency period)
-    createTicketDraw(ticket.id, { skipped: 1, done: 0, date: startDate });
+    createTicketDraw(ticket.id, {
+      skipped: true,
+      done: false,
+      date: startDate,
+    });
 
     // Set date to 2 days later
     MockDate.set('2025-05-03');
@@ -243,7 +265,7 @@ describe('Ticket frequency behavior', () => {
     const ticket = createTestTicket({ frequency: 7, last_drawn: startDate });
 
     // Create a completed draw from 8 days ago (outside frequency period)
-    createTicketDraw(ticket.id, { done: 1, date: startDate });
+    createTicketDraw(ticket.id, { done: true, date: startDate });
 
     // Set date to 8 days later
     MockDate.set('2025-05-09');
@@ -267,7 +289,7 @@ describe('Daily ticket frequency behavior', () => {
     const ticket = createTestTicket({ frequency: 1 }); // Daily frequency
 
     // Create a completed draw from yesterday
-    createTicketDraw(ticket.id, { done: 1, date: startDate });
+    createTicketDraw(ticket.id, { done: true, date: startDate });
 
     // Set date to today
     MockDate.set('2025-05-09'); // Today
@@ -287,7 +309,7 @@ describe('Daily ticket frequency behavior', () => {
     const ticket = createTestTicket({ frequency: 1 }); // Daily frequency
 
     // Create a completed draw from yesterday
-    createTicketDraw(ticket.id, { done: 1, date: startDate });
+    createTicketDraw(ticket.id, { done: true, date: startDate });
 
     // Set date to today
     MockDate.set('2025-05-09'); // Today
@@ -307,7 +329,7 @@ describe('Daily ticket frequency behavior', () => {
     const ticket = createTestTicket({ frequency: 1 }); // Daily frequency
 
     // Create a completed draw from two days ago
-    createTicketDraw(ticket.id, { done: 1, date: startDate });
+    createTicketDraw(ticket.id, { done: true, date: startDate });
 
     // Set date to today
     MockDate.set('2025-05-09'); // Today
@@ -345,7 +367,7 @@ function getTodayDayString(): string {
 function selectTicketsForDrawE2EFixed(
   todayDay: string,
   fixedCount: number = 5
-): TestTicket[] {
+): Ticket[] {
   const today = getTodayDate();
   const todayTimestamp = getTodayTimestamp();
   const maxDrawCount = fixedCount;
@@ -379,7 +401,7 @@ function selectTicketsForDrawE2EFixed(
 
   const mustDrawTickets = db
     .prepare(mustDrawQuery)
-    .all(todayTimestamp) as TestTicket[];
+    .all(todayTimestamp) as Ticket[];
 
   // Can-draw tickets query
   const canDrawQuery = `
@@ -401,9 +423,9 @@ function selectTicketsForDrawE2EFixed(
 
   const canDrawTickets = db
     .prepare(canDrawQuery)
-    .all(todayTimestamp) as TestTicket[];
+    .all(todayTimestamp) as Ticket[];
 
-  const selectedTickets: TestTicket[] = [];
+  const selectedTickets: Ticket[] = [];
   const selectedTicketIds = new Set<string>();
 
   // Add must-draw tickets first
@@ -482,7 +504,7 @@ function calculateDailyDrawCountTest(): number {
 }
 
 // Simplified version of the selectTicketsForDraw logic for testing
-function selectTicketsForDrawE2E(todayDay: string): TestTicket[] {
+function selectTicketsForDrawE2E(todayDay: string): Ticket[] {
   const today = getTodayDate();
   const todayTimestamp = getTodayTimestamp();
   const maxDrawCount = calculateDailyDrawCountTest();
@@ -516,7 +538,7 @@ function selectTicketsForDrawE2E(todayDay: string): TestTicket[] {
 
   const mustDrawTickets = db
     .prepare(mustDrawQuery)
-    .all(todayTimestamp) as TestTicket[];
+    .all(todayTimestamp) as Ticket[];
 
   // Can-draw tickets query
   const canDrawQuery = `
@@ -538,9 +560,9 @@ function selectTicketsForDrawE2E(todayDay: string): TestTicket[] {
 
   const canDrawTickets = db
     .prepare(canDrawQuery)
-    .all(todayTimestamp) as TestTicket[];
+    .all(todayTimestamp) as Ticket[];
 
-  const selectedTickets: TestTicket[] = [];
+  const selectedTickets: Ticket[] = [];
   const selectedTicketIds = new Set<string>();
 
   // Add must-draw tickets first
@@ -581,7 +603,7 @@ function performDraw(
   expectedMustDrawCount: number,
   expectedTotalDrawCount: number,
   fixedCount?: number
-): TestTicket[] {
+): Ticket[] {
   const todayDay = getTodayDayString();
 
   // Simulate the draw selection logic - use fixed count version if specified
@@ -591,8 +613,8 @@ function performDraw(
 
   // Verify the expected counts
   const mustDrawTickets = selectedTickets.filter((ticket) => {
-    const dayField = `must_draw_${todayDay}` as keyof TestTicket;
-    return ticket[dayField] === 1;
+    const dayField = `must_draw_${todayDay}` as keyof Ticket;
+    return (ticket[dayField] as any) === 1; // Database returns 1 for true
   });
 
   expect(mustDrawTickets.length).toBe(expectedMustDrawCount);
@@ -663,7 +685,7 @@ describe('End-to-end drawing behavior with 23.5 hour intervals', () => {
 
     // Mark all as done
     firstDraw.forEach((ticket) => {
-      createTicketDraw(ticket.id, { done: 1, date: getTodayTimestamp() });
+      createTicketDraw(ticket.id, { done: true, date: getTodayTimestamp() });
     });
 
     // 5. Advance by 23.5 hours
@@ -706,7 +728,7 @@ describe('End-to-end drawing behavior with 23.5 hour intervals', () => {
     });
 
     // Complete it
-    createTicketDraw(dailyTicket.id, { done: 1, date: getTodayTimestamp() });
+    createTicketDraw(dailyTicket.id, { done: true, date: getTodayTimestamp() });
 
     // Advance exactly 23.5 hours (less than 24 hours)
     advanceTime23_5Hours(); // Monday 8 AM -> Tuesday 7:30 AM
@@ -728,7 +750,7 @@ describe('End-to-end drawing behavior with 23.5 hour intervals', () => {
     const mondayTimestamp = getTodayTimestamp();
 
     // Create a completed draw on Monday 8 AM
-    createTicketDraw(ticket.id, { done: 1, date: mondayTimestamp });
+    createTicketDraw(ticket.id, { done: true, date: mondayTimestamp });
 
     // Test different time intervals
     const testTimes = [
@@ -757,7 +779,7 @@ describe('End-to-end drawing behavior with 23.5 hour intervals', () => {
     const mondayTimestamp = getTodayTimestamp();
 
     // Create a completed draw on Monday 8 AM
-    createTicketDraw(ticket.id, { done: 1, date: mondayTimestamp });
+    createTicketDraw(ticket.id, { done: true, date: mondayTimestamp });
 
     // Test specific Tuesday morning times
     const tuesdayTimes = [
@@ -852,7 +874,10 @@ describe('Dynamic draw count calculation', () => {
 
     for (let i = 0; i < 7; i++) {
       const ticket = createTestTicket();
-      createTicketDraw(ticket.id, { done: 0, date: formatDateISO(baseDate) });
+      createTicketDraw(ticket.id, {
+        done: false,
+        date: formatDateISO(baseDate),
+      });
     }
 
     const drawCount = calculateDailyDrawCountTest();
@@ -866,7 +891,10 @@ describe('Dynamic draw count calculation', () => {
 
     for (let i = 0; i < 7; i++) {
       const ticket = createTestTicket();
-      createTicketDraw(ticket.id, { done: 1, date: formatDateISO(baseDate) });
+      createTicketDraw(ticket.id, {
+        done: true,
+        date: formatDateISO(baseDate),
+      });
     }
 
     const drawCount = calculateDailyDrawCountTest();
@@ -881,13 +909,19 @@ describe('Dynamic draw count calculation', () => {
     // 4 completed draws
     for (let i = 0; i < 4; i++) {
       const ticket = createTestTicket();
-      createTicketDraw(ticket.id, { done: 1, date: formatDateISO(baseDate) });
+      createTicketDraw(ticket.id, {
+        done: true,
+        date: formatDateISO(baseDate),
+      });
     }
 
     // 3 incomplete draws
     for (let i = 0; i < 3; i++) {
       const ticket = createTestTicket();
-      createTicketDraw(ticket.id, { done: 0, date: formatDateISO(baseDate) });
+      createTicketDraw(ticket.id, {
+        done: false,
+        date: formatDateISO(baseDate),
+      });
     }
 
     const drawCount = calculateDailyDrawCountTest();
@@ -904,7 +938,10 @@ describe('Dynamic draw count calculation', () => {
 
     for (let i = 0; i < 5; i++) {
       const ticket = createTestTicket();
-      createTicketDraw(ticket.id, { done: 1, date: formatDateISO(baseDate) });
+      createTicketDraw(ticket.id, {
+        done: true,
+        date: formatDateISO(baseDate),
+      });
     }
 
     const drawCount = calculateDailyDrawCountTest();
@@ -921,14 +958,17 @@ describe('Dynamic draw count calculation', () => {
     // 1 completed
     const completedTicket = createTestTicket();
     createTicketDraw(completedTicket.id, {
-      done: 1,
+      done: true,
       date: formatDateISO(baseDate),
     });
 
     // 4 incomplete
     for (let i = 0; i < 4; i++) {
       const ticket = createTestTicket();
-      createTicketDraw(ticket.id, { done: 0, date: formatDateISO(baseDate) });
+      createTicketDraw(ticket.id, {
+        done: false,
+        date: formatDateISO(baseDate),
+      });
     }
 
     const drawCount = calculateDailyDrawCountTest();
@@ -942,7 +982,7 @@ describe('Dynamic draw count calculation', () => {
 
     const ticket = createTestTicket();
     createTicketDraw(ticket.id, {
-      done: 1,
+      done: true,
       date: formatDateISO(exactlySevenDaysAgo),
     });
 
@@ -956,7 +996,10 @@ describe('Dynamic draw count calculation', () => {
     eightDaysAgo.setDate(eightDaysAgo.getDate() - 8);
 
     const ticket = createTestTicket();
-    createTicketDraw(ticket.id, { done: 1, date: formatDateISO(eightDaysAgo) });
+    createTicketDraw(ticket.id, {
+      done: true,
+      date: formatDateISO(eightDaysAgo),
+    });
 
     const drawCount = calculateDailyDrawCountTest();
     expect(drawCount).toBe(5); // Should be excluded, default to 5
@@ -974,27 +1017,27 @@ describe('Dynamic draw count calculation', () => {
     // Day 1: 5 tickets, 3 completed (60%)
     for (let i = 0; i < 3; i++) {
       const ticket = createTestTicket();
-      createTicketDraw(ticket.id, { done: 1, date: dates[0] });
+      createTicketDraw(ticket.id, { done: true, date: dates[0] });
     }
     for (let i = 0; i < 2; i++) {
       const ticket = createTestTicket();
-      createTicketDraw(ticket.id, { done: 0, date: dates[0] });
+      createTicketDraw(ticket.id, { done: false, date: dates[0] });
     }
 
     // Day 2: 6 tickets, 2 completed (33%)
     for (let i = 0; i < 2; i++) {
       const ticket = createTestTicket();
-      createTicketDraw(ticket.id, { done: 1, date: dates[1] });
+      createTicketDraw(ticket.id, { done: true, date: dates[1] });
     }
     for (let i = 0; i < 4; i++) {
       const ticket = createTestTicket();
-      createTicketDraw(ticket.id, { done: 0, date: dates[1] });
+      createTicketDraw(ticket.id, { done: false, date: dates[1] });
     }
 
     // Day 3: 7 tickets, 7 completed (100%)
     for (let i = 0; i < 7; i++) {
       const ticket = createTestTicket();
-      createTicketDraw(ticket.id, { done: 1, date: dates[2] });
+      createTicketDraw(ticket.id, { done: true, date: dates[2] });
     }
 
     // Total: 18 tickets, 12 completed = 67% completion rate
@@ -1015,10 +1058,10 @@ describe('End-to-end draw count and frequency integration', () => {
 
     // 1 completed out of 5 total = 20% rate = 6 tickets
     const completedTicket = createTestTicket();
-    createTicketDraw(completedTicket.id, { done: 1, date: baseDateISO });
+    createTicketDraw(completedTicket.id, { done: true, date: baseDateISO });
     for (let i = 0; i < 4; i++) {
       const ticket = createTestTicket();
-      createTicketDraw(ticket.id, { done: 0, date: baseDateISO });
+      createTicketDraw(ticket.id, { done: false, date: baseDateISO });
     }
 
     // Create 8 must-draw tickets for Monday (more than the 6 we'll get)
@@ -1104,7 +1147,7 @@ describe('End-to-end draw count and frequency integration', () => {
         must_draw_sunday: 0,
         can_draw_sunday: 0,
       });
-      createTicketDraw(ticket.id, { done: 1, date: baseDateISO });
+      createTicketDraw(ticket.id, { done: true, date: baseDateISO });
     }
     for (let i = 0; i < 2; i++) {
       const ticket = createTestTicket({
@@ -1124,7 +1167,7 @@ describe('End-to-end draw count and frequency integration', () => {
         must_draw_sunday: 0,
         can_draw_sunday: 0,
       });
-      createTicketDraw(ticket.id, { done: 0, date: baseDateISO });
+      createTicketDraw(ticket.id, { done: false, date: baseDateISO });
     }
 
     // Create 3 must-draw tickets
@@ -1175,7 +1218,7 @@ describe('End-to-end draw count and frequency integration', () => {
 
     // Count must-draw tickets
     const mustDrawCount = selectedTickets.filter(
-      (t) => t.must_draw_monday === 1
+      (t) => (t.must_draw_monday as any) === 1 // Database returns 1 for true
     ).length;
     expect(mustDrawCount).toBe(3);
 
@@ -1209,7 +1252,7 @@ describe('End-to-end draw count and frequency integration', () => {
         must_draw_sunday: 0,
         can_draw_sunday: 0,
       });
-      createTicketDraw(ticket.id, { done: 1, date: baseDateISO });
+      createTicketDraw(ticket.id, { done: true, date: baseDateISO });
     }
     for (let i = 0; i < 3; i++) {
       const ticket = createTestTicket({
@@ -1229,7 +1272,7 @@ describe('End-to-end draw count and frequency integration', () => {
         must_draw_sunday: 0,
         can_draw_sunday: 0,
       });
-      createTicketDraw(ticket.id, { done: 0, date: baseDateISO });
+      createTicketDraw(ticket.id, { done: false, date: baseDateISO });
     }
 
     // Create tickets with different frequencies that were recently completed
@@ -1275,12 +1318,15 @@ describe('End-to-end draw count and frequency integration', () => {
     // Complete weekly ticket 8 days ago (should be included)
     MockDate.set('2025-05-11T08:00:00.000Z'); // Sunday 8 AM
     const sundayTimestamp = getTodayTimestamp();
-    createTicketDraw(dailyTicket.id, { done: 1, date: sundayTimestamp });
+    createTicketDraw(dailyTicket.id, { done: true, date: sundayTimestamp });
 
     // Create weekly ticket draw 8 days ago (outside 7-day frequency)
     MockDate.set('2025-05-04T08:00:00.000Z'); // 8 days before Monday
     const eightDaysAgoTimestamp = getTodayTimestamp();
-    createTicketDraw(weeklyTicket.id, { done: 1, date: eightDaysAgoTimestamp });
+    createTicketDraw(weeklyTicket.id, {
+      done: true,
+      date: eightDaysAgoTimestamp,
+    });
 
     // Back to Monday
     MockDate.set('2025-05-12T08:00:00.000Z'); // Monday 8 AM
@@ -1389,10 +1435,10 @@ describe('End-to-end draw count and frequency integration', () => {
 
     // Complete some tickets to affect next day's draw count
     selectedTickets.slice(0, 3).forEach((ticket) => {
-      createTicketDraw(ticket.id, { done: 1, date: getTodayTimestamp() });
+      createTicketDraw(ticket.id, { done: true, date: getTodayTimestamp() });
     });
     selectedTickets.slice(3).forEach((ticket) => {
-      createTicketDraw(ticket.id, { done: 0, date: getTodayTimestamp() });
+      createTicketDraw(ticket.id, { done: false, date: getTodayTimestamp() });
     });
 
     // === TUESDAY (25 hours later) ===
@@ -1410,10 +1456,10 @@ describe('End-to-end draw count and frequency integration', () => {
 
     // Complete more tickets
     selectedTickets.slice(0, 4).forEach((ticket) => {
-      createTicketDraw(ticket.id, { done: 1, date: getTodayTimestamp() });
+      createTicketDraw(ticket.id, { done: true, date: getTodayTimestamp() });
     });
     selectedTickets.slice(4).forEach((ticket) => {
-      createTicketDraw(ticket.id, { done: 0, date: getTodayTimestamp() });
+      createTicketDraw(ticket.id, { done: false, date: getTodayTimestamp() });
     });
 
     // === WEDNESDAY (48+ hours from Monday) ===
@@ -1439,11 +1485,11 @@ describe('End-to-end draw count and frequency integration', () => {
     // Create exactly 6 draws with 3 completed (50% = 7-8 tickets)
     for (let i = 0; i < 3; i++) {
       const ticket = createTestTicket();
-      createTicketDraw(ticket.id, { done: 1, date: baseDateISO });
+      createTicketDraw(ticket.id, { done: true, date: baseDateISO });
     }
     for (let i = 0; i < 3; i++) {
       const ticket = createTestTicket();
-      createTicketDraw(ticket.id, { done: 0, date: baseDateISO });
+      createTicketDraw(ticket.id, { done: false, date: baseDateISO });
     }
 
     // Create a frequency=2 ticket
@@ -1468,7 +1514,10 @@ describe('End-to-end draw count and frequency integration', () => {
 
     // Complete it exactly 2 days ago (at the frequency boundary)
     MockDate.set('2025-05-10T08:00:00.000Z'); // Saturday 8 AM
-    createTicketDraw(biDailyTicket.id, { done: 1, date: getTodayTimestamp() });
+    createTicketDraw(biDailyTicket.id, {
+      done: true,
+      date: getTodayTimestamp(),
+    });
 
     // Back to Monday - exactly 2 days (48 hours) later
     MockDate.set('2025-05-12T08:00:00.000Z'); // Monday 8 AM
