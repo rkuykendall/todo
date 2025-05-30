@@ -5,10 +5,10 @@ import globals from 'globals';
 export default [
   // Include the recommended ESLint rules
   js.configs.recommended,
-  
+
   // Include base config from shared
   ...base,
-  
+
   // TypeScript-specific configuration for all TS files
   {
     files: ['**/*.ts'],
@@ -19,7 +19,7 @@ export default [
       },
     },
   },
-  
+
   // Configuration for TypeScript test files
   {
     files: ['**/__tests__/**/*.ts'],
@@ -40,7 +40,7 @@ export default [
       },
     },
   },
-  
+
   // Configuration for JS configuration files (which are the only JS files in the project)
   {
     files: ['*.config.js', '.*.js'],
@@ -49,5 +49,5 @@ export default [
         ...globals.node,
       },
     },
-  }
+  },
 ];
