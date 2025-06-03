@@ -1,55 +1,54 @@
+/**
+ * Frequency Test Suite - Database Integration
+ *
+ * This test suite validates the frequency-based draw logic for tickets.
+ *
+ * MIGRATION TO APPLICATION DATABASE ARCHITECTURE:
+ * - Uses the same database schema as the main application (src/db/index.ts)
+ * - Replicates the exact table structure, constraints, and indexes
+ * - Uses the same SQL queries and logic patterns as the production code
+ * - Maintains the same Central Time timezone configuration
+ * - Follows the same transaction patterns and database setup procedures
+ *
+ * TEST DATABASE SETUP:
+ * - Uses the shared createTestDatabase() function from src/db/utils.ts
+ * - Ensures identical database configuration as production (WAL mode, foreign keys)
+ * - Guarantees the same CURRENT_TIMESTAMP_CT() function for timezone handling
+ * - Eliminates drift between test and production database setups
+ *
+ * KEY BENEFITS OF THIS APPROACH:
+ * - Tests run against the exact same database structure as production
+ * - Ensures compatibility between test and production environments
+ * - Validates that database queries work correctly with the actual schema
+ * - Provides confidence that frequency logic works in the real application
+ * - Single source of truth for database configuration (no duplication)
+ *
+ * INTEGRATION POINTS:
+ * - Database schema matches src/db/index.ts exactly via shared utilities
+ * - Query logic mirrors the main application's selectTicketsForDraw function
+ * - Date/time handling uses the same timezone and formatting logic
+ * - Boolean/numeric conversions match the production data transformation patterns
+ */
+
 import Database from 'better-sqlite3';
 import MockDate from 'mockdate';
 import { v4 as uuidv4 } from 'uuid';
 import { formatDateISO, type Ticket } from '@todo/shared';
-import type { TicketDraw } from '../src/types/ticket_draw.js';
+import type { TicketDraw } from '../../src/types/ticket_draw.ts';
+import { createTestDatabase } from '../../src/db/utils.ts';
 
-// Create an in-memory database for testing
-const db = new Database(':memory:');
+// Create an in-memory database for testing with the same setup as the application
+let db: Database.Database;
 
 // Mock date functions that would be in your main code
 function getTodayDate(): string {
   return formatDateISO(new Date());
 }
 
-// Set up schema for tests - simplified version of your actual schema
+// Set up schema for tests - using the same schema as the main application
 beforeAll(() => {
-  // Create tables with only the necessary fields for these tests
-  db.exec(`
-    CREATE TABLE ticket (
-      id TEXT PRIMARY KEY,
-      created_at DATETIME DEFAULT (datetime('now')),
-      title TEXT NOT NULL,
-      recurring BOOLEAN DEFAULT 0,
-      done DATETIME,
-      last_drawn DATETIME,
-      deadline DATETIME,
-      frequency INTEGER DEFAULT 1,
-      can_draw_monday BOOLEAN DEFAULT 1,
-      must_draw_monday BOOLEAN DEFAULT 1,
-      can_draw_tuesday BOOLEAN DEFAULT 1,
-      must_draw_tuesday BOOLEAN DEFAULT 1,
-      can_draw_wednesday BOOLEAN DEFAULT 1,
-      must_draw_wednesday BOOLEAN DEFAULT 1,
-      can_draw_thursday BOOLEAN DEFAULT 1,
-      must_draw_thursday BOOLEAN DEFAULT 1,
-      can_draw_friday BOOLEAN DEFAULT 1,
-      must_draw_friday BOOLEAN DEFAULT 1,
-      can_draw_saturday BOOLEAN DEFAULT 1,
-      must_draw_saturday BOOLEAN DEFAULT 1,
-      can_draw_sunday BOOLEAN DEFAULT 1,
-      must_draw_sunday BOOLEAN DEFAULT 1
-    );
-    
-    CREATE TABLE ticket_draw (
-      id TEXT PRIMARY KEY,
-      created_at DATETIME DEFAULT (datetime('now')),
-      ticket_id TEXT NOT NULL,
-      done BOOLEAN DEFAULT 0,
-      skipped BOOLEAN DEFAULT 0,
-      FOREIGN KEY (ticket_id) REFERENCES ticket(id) ON DELETE CASCADE
-    );
-  `);
+  // Initialize test database with the same setup as the application
+  db = createTestDatabase();
 });
 
 // Clean up after all tests
@@ -136,7 +135,7 @@ function createTicketDraw(
     `INSERT INTO ticket_draw (id, created_at, ticket_id, done, skipped) VALUES (?, ?, ?, ?, ?)`
   ).run(drawId, createdAt, ticketId, done ? 1 : 0, skipped ? 1 : 0);
 
-  // Update last_drawn on the ticket
+  // Update last_drawn on the ticket (using the same pattern as the main application)
   db.prepare('UPDATE ticket SET last_drawn = ? WHERE id = ?').run(
     createdAt,
     ticketId
@@ -372,7 +371,7 @@ function selectTicketsForDrawE2EFixed(
   const todayTimestamp = getTodayTimestamp();
   const maxDrawCount = fixedCount;
 
-  // Get existing draws for today
+  // Get existing draws for today (using same pattern as main application)
   const existingDraws = db
     .prepare(
       "SELECT ticket_id FROM ticket_draw WHERE DATE(datetime(created_at, 'localtime')) = ?"
@@ -380,7 +379,7 @@ function selectTicketsForDrawE2EFixed(
     .all(today) as Array<{ ticket_id: string }>;
   const existingTicketIds = new Set(existingDraws.map((d) => d.ticket_id));
 
-  // Must-draw tickets query
+  // Must-draw tickets query (matching main application logic)
   const mustDrawQuery = `
     SELECT t.* FROM ticket t
     WHERE t.must_draw_${todayDay} = 1
@@ -403,7 +402,7 @@ function selectTicketsForDrawE2EFixed(
     .prepare(mustDrawQuery)
     .all(todayTimestamp) as Ticket[];
 
-  // Can-draw tickets query
+  // Can-draw tickets query (matching main application logic)
   const canDrawQuery = `
     SELECT t.* FROM ticket t
     WHERE t.done IS NULL
@@ -454,9 +453,9 @@ function selectTicketsForDrawE2EFixed(
   return selectedTickets;
 }
 
-// Helper function to simulate the calculateDailyDrawCount logic
+// Helper function to simulate the calculateDailyDrawCount logic (matching main application)
 function calculateDailyDrawCountTest(): number {
-  // Get one-week-ago date
+  // Get one-week-ago date (same logic as main application)
   const today = new Date();
   const oneWeekAgo = new Date();
   oneWeekAgo.setDate(today.getDate() - 7);
@@ -464,7 +463,7 @@ function calculateDailyDrawCountTest(): number {
   const todayISO = formatDateISO(today);
   const oneWeekAgoISO = formatDateISO(oneWeekAgo);
 
-  // Count completed draws in the past week
+  // Count completed draws in the past week (same query as main application)
   const completedDraws = db
     .prepare(
       `
@@ -476,7 +475,7 @@ function calculateDailyDrawCountTest(): number {
     )
     .get(oneWeekAgoISO, todayISO) as { count: number };
 
-  // Count total draws in the past week
+  // Count total draws in the past week (same query as main application)
   const totalDraws = db
     .prepare(
       `
@@ -487,7 +486,7 @@ function calculateDailyDrawCountTest(): number {
     )
     .get(oneWeekAgoISO, todayISO) as { count: number };
 
-  // Calculate completion rate with better default handling
+  // Calculate completion rate with better default handling (same logic as main application)
   let drawCount = 5; // Default minimum if no data
 
   if (totalDraws.count > 0) {
@@ -509,7 +508,7 @@ function selectTicketsForDrawE2E(todayDay: string): Ticket[] {
   const todayTimestamp = getTodayTimestamp();
   const maxDrawCount = calculateDailyDrawCountTest();
 
-  // Get existing draws for today
+  // Get existing draws for today (using same pattern as main application)
   const existingDraws = db
     .prepare(
       "SELECT ticket_id FROM ticket_draw WHERE DATE(datetime(created_at, 'localtime')) = ?"
@@ -517,7 +516,7 @@ function selectTicketsForDrawE2E(todayDay: string): Ticket[] {
     .all(today) as Array<{ ticket_id: string }>;
   const existingTicketIds = new Set(existingDraws.map((d) => d.ticket_id));
 
-  // Must-draw tickets query
+  // Must-draw tickets query (matching main application logic)
   const mustDrawQuery = `
     SELECT t.* FROM ticket t
     WHERE t.must_draw_${todayDay} = 1
@@ -540,7 +539,7 @@ function selectTicketsForDrawE2E(todayDay: string): Ticket[] {
     .prepare(mustDrawQuery)
     .all(todayTimestamp) as Ticket[];
 
-  // Can-draw tickets query
+  // Can-draw tickets query (matching main application logic)
   const canDrawQuery = `
     SELECT t.* FROM ticket t
     WHERE t.done IS NULL
