@@ -16,12 +16,19 @@
  * - Guarantees the same CURRENT_TIMESTAMP_CT() function for timezone handling
  * - Eliminates drift between test and production database setups
  *
+ * SHARED QUERY INTEGRATION:
+ * - Uses shared query functions from src/db/queries.ts
+ * - getMustDrawQuery() and getCanDrawQuery() ensure identical SQL logic
+ * - Single source of truth for all database queries
+ * - Automatic synchronization between test and production queries
+ *
  * KEY BENEFITS OF THIS APPROACH:
  * - Tests run against the exact same database structure as production
  * - Ensures compatibility between test and production environments
  * - Validates that database queries work correctly with the actual schema
  * - Provides confidence that frequency logic works in the real application
  * - Single source of truth for database configuration (no duplication)
+ * - Guaranteed query consistency between application and tests
  *
  * INTEGRATION POINTS:
  * - Database schema matches src/db/index.ts exactly via shared utilities
@@ -36,6 +43,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { formatDateISO, type Ticket } from '@todo/shared';
 import type { TicketDraw } from '../../src/types/ticket_draw.ts';
 import { createTestDatabase } from '../../src/db/utils.ts';
+import { getMustDrawQuery, getCanDrawQuery } from '../../src/db/queries.ts';
 
 // Create an in-memory database for testing with the same setup as the application
 let db: Database.Database;
@@ -379,49 +387,14 @@ function selectTicketsForDrawE2EFixed(
     .all(today) as Array<{ ticket_id: string }>;
   const existingTicketIds = new Set(existingDraws.map((d) => d.ticket_id));
 
-  // Must-draw tickets query (matching main application logic)
-  const mustDrawQuery = `
-    SELECT t.* FROM ticket t
-    WHERE t.must_draw_${todayDay} = 1
-    AND t.done IS NULL
-    AND (
-      t.last_drawn IS NULL
-      OR (
-        NOT EXISTS (
-          SELECT 1 FROM ticket_draw td
-          WHERE td.ticket_id = t.id
-          AND td.done = 1
-          AND julianday(?) - julianday(td.created_at) <= t.frequency
-        )
-      )
-    )
-    ORDER BY t.last_drawn ASC NULLS FIRST, RANDOM()
-  `;
-
+  // Must-draw tickets query (using shared query function)
   const mustDrawTickets = db
-    .prepare(mustDrawQuery)
+    .prepare(getMustDrawQuery(todayDay, false))
     .all(todayTimestamp) as Ticket[];
 
-  // Can-draw tickets query (matching main application logic)
-  const canDrawQuery = `
-    SELECT t.* FROM ticket t
-    WHERE t.done IS NULL
-    AND (
-      t.last_drawn IS NULL
-      OR (
-        NOT EXISTS (
-          SELECT 1 FROM ticket_draw td
-          WHERE td.ticket_id = t.id
-          AND td.done = 1
-          AND julianday(?) - julianday(td.created_at) <= t.frequency
-        )
-      )
-    )
-    ORDER BY t.last_drawn ASC NULLS FIRST, RANDOM()
-  `;
-
+  // Can-draw tickets query (using shared query function)
   const canDrawTickets = db
-    .prepare(canDrawQuery)
+    .prepare(getCanDrawQuery(todayDay, false))
     .all(todayTimestamp) as Ticket[];
 
   const selectedTickets: Ticket[] = [];
@@ -516,49 +489,14 @@ function selectTicketsForDrawE2E(todayDay: string): Ticket[] {
     .all(today) as Array<{ ticket_id: string }>;
   const existingTicketIds = new Set(existingDraws.map((d) => d.ticket_id));
 
-  // Must-draw tickets query (matching main application logic)
-  const mustDrawQuery = `
-    SELECT t.* FROM ticket t
-    WHERE t.must_draw_${todayDay} = 1
-    AND t.done IS NULL
-    AND (
-      t.last_drawn IS NULL
-      OR (
-        NOT EXISTS (
-          SELECT 1 FROM ticket_draw td
-          WHERE td.ticket_id = t.id
-          AND td.done = 1
-          AND julianday(?) - julianday(td.created_at) <= t.frequency
-        )
-      )
-    )
-    ORDER BY t.last_drawn ASC NULLS FIRST, RANDOM()
-  `;
-
+  // Must-draw tickets query (using shared query function)
   const mustDrawTickets = db
-    .prepare(mustDrawQuery)
+    .prepare(getMustDrawQuery(todayDay, false))
     .all(todayTimestamp) as Ticket[];
 
-  // Can-draw tickets query (matching main application logic)
-  const canDrawQuery = `
-    SELECT t.* FROM ticket t
-    WHERE t.done IS NULL
-    AND (
-      t.last_drawn IS NULL
-      OR (
-        NOT EXISTS (
-          SELECT 1 FROM ticket_draw td
-          WHERE td.ticket_id = t.id
-          AND td.done = 1
-          AND julianday(?) - julianday(td.created_at) <= t.frequency
-        )
-      )
-    )
-    ORDER BY t.last_drawn ASC NULLS FIRST, RANDOM()
-  `;
-
+  // Can-draw tickets query (using shared query function)
   const canDrawTickets = db
-    .prepare(canDrawQuery)
+    .prepare(getCanDrawQuery(todayDay, false))
     .all(todayTimestamp) as Ticket[];
 
   const selectedTickets: Ticket[] = [];
