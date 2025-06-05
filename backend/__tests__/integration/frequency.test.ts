@@ -114,6 +114,173 @@ function createTestTicket(overrides = {}): Ticket {
   return ticketData;
 }
 
+// Optimized helper functions for common ticket patterns
+
+/**
+ * Create a historical data ticket (can't be drawn on any day)
+ * Used for setting up completion rate data without affecting current draws
+ */
+function createHistoricalTicket(title?: string): Ticket {
+  return createTestTicket({
+    title: title || 'Historical Ticket',
+    frequency: 7,
+    must_draw_monday: false,
+    can_draw_monday: false,
+    must_draw_tuesday: false,
+    can_draw_tuesday: false,
+    must_draw_wednesday: false,
+    can_draw_wednesday: false,
+    must_draw_thursday: false,
+    can_draw_thursday: false,
+    must_draw_friday: false,
+    can_draw_friday: false,
+    must_draw_saturday: false,
+    can_draw_saturday: false,
+    must_draw_sunday: false,
+    can_draw_sunday: false,
+  });
+}
+
+/**
+ * Create a must-draw ticket for a specific day
+ */
+function createMustDrawTicket(
+  day: string,
+  frequency = 7,
+  title?: string
+): Ticket {
+  const overrides: any = {
+    title: title || `Must Draw ${day.charAt(0).toUpperCase() + day.slice(1)}`,
+    frequency,
+    [`must_draw_${day}`]: true,
+    [`can_draw_${day}`]: true,
+  };
+
+  // Set all other days to not must-draw but can-draw
+  const dayFields = [
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+    'sunday',
+  ];
+  dayFields.forEach((d) => {
+    if (d !== day) {
+      overrides[`must_draw_${d}`] = false;
+      overrides[`can_draw_${d}`] = true;
+    }
+  });
+
+  return createTestTicket(overrides);
+}
+
+/**
+ * Create a normal ticket (can draw any day, no must-draw constraints)
+ */
+function createNormalTicket(frequency = 7, title?: string): Ticket {
+  return createTestTicket({
+    title: title || 'Normal Ticket',
+    frequency,
+    must_draw_monday: false,
+    can_draw_monday: true,
+    must_draw_tuesday: false,
+    can_draw_tuesday: true,
+    must_draw_wednesday: false,
+    can_draw_wednesday: true,
+    must_draw_thursday: false,
+    can_draw_thursday: true,
+    must_draw_friday: false,
+    can_draw_friday: true,
+    must_draw_saturday: false,
+    can_draw_saturday: true,
+    must_draw_sunday: false,
+    can_draw_sunday: true,
+  });
+}
+
+/**
+ * Create a daily must-draw ticket (must draw every day)
+ */
+function createDailyMustDrawTicket(title?: string): Ticket {
+  return createTestTicket({
+    title: title || 'Daily Must Draw',
+    frequency: 1,
+    must_draw_monday: true,
+    can_draw_monday: true,
+    must_draw_tuesday: true,
+    can_draw_tuesday: true,
+    must_draw_wednesday: true,
+    can_draw_wednesday: true,
+    must_draw_thursday: true,
+    can_draw_thursday: true,
+    must_draw_friday: true,
+    can_draw_friday: true,
+    must_draw_saturday: true,
+    can_draw_saturday: true,
+    must_draw_sunday: true,
+    can_draw_sunday: true,
+  });
+}
+
+/**
+ * Create a bi-daily must-draw ticket (Monday, Wednesday, Friday, Sunday)
+ */
+function createBiDailyMustDrawTicket(title?: string): Ticket {
+  return createTestTicket({
+    title: title || 'Bi-Daily Must Draw',
+    frequency: 2,
+    must_draw_monday: true,
+    can_draw_monday: true,
+    must_draw_tuesday: false,
+    can_draw_tuesday: true,
+    must_draw_wednesday: true,
+    can_draw_wednesday: true,
+    must_draw_thursday: false,
+    can_draw_thursday: true,
+    must_draw_friday: true,
+    can_draw_friday: true,
+    must_draw_saturday: false,
+    can_draw_saturday: true,
+    must_draw_sunday: true,
+    can_draw_sunday: true,
+  });
+}
+
+/**
+ * Create a normal ticket with specific day restrictions
+ */
+function createRestrictedNormalTicket(
+  dayConfig: Record<string, boolean>,
+  frequency = 7,
+  title?: string
+): Ticket {
+  const defaults = {
+    must_draw_monday: false,
+    can_draw_monday: true,
+    must_draw_tuesday: false,
+    can_draw_tuesday: true,
+    must_draw_wednesday: false,
+    can_draw_wednesday: true,
+    must_draw_thursday: false,
+    can_draw_thursday: true,
+    must_draw_friday: false,
+    can_draw_friday: true,
+    must_draw_saturday: false,
+    can_draw_saturday: true,
+    must_draw_sunday: false,
+    can_draw_sunday: true,
+  };
+
+  return createTestTicket({
+    title: title || 'Restricted Normal Ticket',
+    frequency,
+    ...defaults,
+    ...dayConfig,
+  });
+}
+
 function createTicketDraw(
   ticketId: string,
   {
@@ -168,7 +335,7 @@ function isTicketEligible(ticketId: string, todayDay: string): boolean {
 describe('Ticket frequency behavior', () => {
   test('ticket is eligible for draw if never drawn before', () => {
     // Arrange
-    const ticket = createTestTicket({ frequency: 7 });
+    const ticket = createNormalTicket(7);
 
     // Act
     const isEligible = isTicketEligible(ticket.id, 'monday');
@@ -181,7 +348,12 @@ describe('Ticket frequency behavior', () => {
     // Arrange
     MockDate.set('2025-05-01');
     const startDate = getTodayDate();
-    const ticket = createTestTicket({ frequency: 7, last_drawn: startDate });
+    const ticket = createNormalTicket(7);
+    // Update last_drawn to startDate
+    db.prepare('UPDATE ticket SET last_drawn = ? WHERE id = ?').run(
+      startDate,
+      ticket.id
+    );
 
     // Create a completed draw from 2 days ago (within frequency period)
     createTicketDraw(ticket.id, { done: true, date: startDate });
@@ -200,7 +372,12 @@ describe('Ticket frequency behavior', () => {
     // Arrange
     MockDate.set('2025-05-01');
     const startDate = getTodayDate();
-    const ticket = createTestTicket({ frequency: 7, last_drawn: startDate });
+    const ticket = createNormalTicket(7);
+    // Update last_drawn to startDate
+    db.prepare('UPDATE ticket SET last_drawn = ? WHERE id = ?').run(
+      startDate,
+      ticket.id
+    );
 
     // Create a skipped draw from 2 days ago (within frequency period)
     createTicketDraw(ticket.id, {
@@ -223,7 +400,12 @@ describe('Ticket frequency behavior', () => {
     // Arrange
     MockDate.set('2025-05-01');
     const startDate = getTodayDate();
-    const ticket = createTestTicket({ frequency: 7, last_drawn: startDate });
+    const ticket = createNormalTicket(7);
+    // Update last_drawn to startDate
+    db.prepare('UPDATE ticket SET last_drawn = ? WHERE id = ?').run(
+      startDate,
+      ticket.id
+    );
 
     // Create a completed draw from 8 days ago (outside frequency period)
     createTicketDraw(ticket.id, { done: true, date: startDate });
@@ -245,7 +427,7 @@ describe('Daily ticket frequency behavior', () => {
     // Arrange
     MockDate.set('2025-05-08'); // Yesterday
     const startDate = getTodayDate();
-    const ticket = createTestTicket({ frequency: 1 }); // Daily frequency
+    const ticket = createNormalTicket(1); // Daily frequency
 
     // Create a completed draw from yesterday
     createTicketDraw(ticket.id, { done: true, date: startDate });
@@ -264,7 +446,7 @@ describe('Daily ticket frequency behavior', () => {
     // Arrange
     MockDate.set('2025-05-07'); // Two days ago
     const startDate = getTodayDate();
-    const ticket = createTestTicket({ frequency: 1 }); // Daily frequency
+    const ticket = createNormalTicket(1); // Daily frequency
 
     // Create a completed draw from two days ago
     createTicketDraw(ticket.id, { done: true, date: startDate });
@@ -443,49 +625,21 @@ describe('End-to-end drawing behavior with 23.5 hour intervals', () => {
     MockDate.set('2025-05-12T08:00:00.000Z'); // Monday 8 AM
 
     // 1. Create must-draw tickets for Monday
-    const mustDrawDaily = createTestTicket({
-      title: 'Must Draw Daily',
-      frequency: 1,
-      must_draw_monday: 1,
-      can_draw_monday: 1,
-      must_draw_tuesday: 1,
-      can_draw_tuesday: 1,
-      must_draw_wednesday: 0,
-      must_draw_thursday: 0,
-      must_draw_friday: 0,
-      must_draw_saturday: 0,
-      must_draw_sunday: 0,
-    });
+    const mustDrawDaily = createMustDrawTicket('monday', 1, 'Must Draw Daily');
+    // Set Tuesday as must-draw too for daily ticket
+    db.prepare(
+      'UPDATE ticket SET must_draw_tuesday = 1, can_draw_tuesday = 1 WHERE id = ?'
+    ).run(mustDrawDaily.id);
 
-    const mustDrawBiDaily = createTestTicket({
-      title: 'Must Draw Bi-Daily',
-      frequency: 2,
-      must_draw_monday: 1,
-      can_draw_monday: 1,
-      must_draw_tuesday: 0,
-      can_draw_tuesday: 1,
-      must_draw_wednesday: 0,
-      must_draw_thursday: 0,
-      must_draw_friday: 0,
-      must_draw_saturday: 0,
-      must_draw_sunday: 0,
-    });
+    const mustDrawBiDaily = createMustDrawTicket(
+      'monday',
+      2,
+      'Must Draw Bi-Daily'
+    );
 
     // 2. Create 10 normal tickets for Monday
     for (let i = 0; i < 10; i++) {
-      createTestTicket({
-        title: `Normal Ticket ${i + 1}`,
-        frequency: 7,
-        must_draw_monday: 0,
-        can_draw_monday: 1,
-        must_draw_tuesday: 0,
-        can_draw_tuesday: 1,
-        must_draw_wednesday: 0,
-        must_draw_thursday: 0,
-        must_draw_friday: 0,
-        must_draw_saturday: 0,
-        must_draw_sunday: 0,
-      });
+      createNormalTicket(7, `Normal Ticket ${i + 1}`);
     }
 
     // 3. Perform first draw on Monday 8 AM
@@ -530,14 +684,11 @@ describe('End-to-end drawing behavior with 23.5 hour intervals', () => {
     MockDate.set('2025-05-12T08:00:00.000Z');
 
     // Create a daily ticket
-    const dailyTicket = createTestTicket({
-      title: 'Daily Ticket',
-      frequency: 1,
-      must_draw_monday: 1,
-      can_draw_monday: 1,
-      must_draw_tuesday: 1,
-      can_draw_tuesday: 1,
-    });
+    const dailyTicket = createMustDrawTicket('monday', 1, 'Daily Ticket');
+    // Set Tuesday as must-draw too for daily ticket
+    db.prepare(
+      'UPDATE ticket SET must_draw_tuesday = 1, can_draw_tuesday = 1 WHERE id = ?'
+    ).run(dailyTicket.id);
 
     // Complete it
     createTicketDraw(dailyTicket.id, { done: true, date: getTodayTimestamp() });
@@ -555,7 +706,7 @@ describe('End-to-end drawing behavior with 23.5 hour intervals', () => {
   test('frequency=1 ticket eligibility with fractional day differences', () => {
     MockDate.set('2025-05-12T08:00:00.000Z'); // Monday 8 AM
 
-    const ticket = createTestTicket({ frequency: 1 });
+    const ticket = createNormalTicket(1);
     const mondayTimestamp = getTodayTimestamp();
 
     // Create a completed draw on Monday 8 AM
@@ -584,7 +735,7 @@ describe('End-to-end drawing behavior with 23.5 hour intervals', () => {
   test('UNDERSTAND THE LOGIC: frequency=1 ticket completed Monday 8AM and Tuesday morning scheduling', () => {
     MockDate.set('2025-05-12T08:00:00.000Z'); // Monday 8 AM
 
-    const ticket = createTestTicket({ frequency: 1 });
+    const ticket = createNormalTicket(1);
     const mondayTimestamp = getTodayTimestamp();
 
     // Create a completed draw on Monday 8 AM
@@ -634,7 +785,7 @@ describe('Dynamic draw count calculation', () => {
     baseDate.setDate(baseDate.getDate() - 3); // 3 days ago
 
     for (let i = 0; i < 7; i++) {
-      const ticket = createTestTicket();
+      const ticket = createNormalTicket();
       createTicketDraw(ticket.id, {
         done: false,
         date: formatDateISO(baseDate),
@@ -651,7 +802,7 @@ describe('Dynamic draw count calculation', () => {
     baseDate.setDate(baseDate.getDate() - 3); // 3 days ago
 
     for (let i = 0; i < 7; i++) {
-      const ticket = createTestTicket();
+      const ticket = createNormalTicket();
       createTicketDraw(ticket.id, {
         done: true,
         date: formatDateISO(baseDate),
@@ -669,7 +820,7 @@ describe('Dynamic draw count calculation', () => {
 
     // 4 completed draws
     for (let i = 0; i < 4; i++) {
-      const ticket = createTestTicket();
+      const ticket = createNormalTicket();
       createTicketDraw(ticket.id, {
         done: true,
         date: formatDateISO(baseDate),
@@ -678,7 +829,7 @@ describe('Dynamic draw count calculation', () => {
 
     // 3 incomplete draws
     for (let i = 0; i < 3; i++) {
-      const ticket = createTestTicket();
+      const ticket = createNormalTicket();
       createTicketDraw(ticket.id, {
         done: false,
         date: formatDateISO(baseDate),
@@ -698,7 +849,7 @@ describe('Dynamic draw count calculation', () => {
     baseDate.setDate(baseDate.getDate() - 3);
 
     for (let i = 0; i < 5; i++) {
-      const ticket = createTestTicket();
+      const ticket = createNormalTicket();
       createTicketDraw(ticket.id, {
         done: true,
         date: formatDateISO(baseDate),
@@ -717,7 +868,7 @@ describe('Dynamic draw count calculation', () => {
     baseDate.setDate(baseDate.getDate() - 3);
 
     // 1 completed
-    const completedTicket = createTestTicket();
+    const completedTicket = createNormalTicket();
     createTicketDraw(completedTicket.id, {
       done: true,
       date: formatDateISO(baseDate),
@@ -725,7 +876,7 @@ describe('Dynamic draw count calculation', () => {
 
     // 4 incomplete
     for (let i = 0; i < 4; i++) {
-      const ticket = createTestTicket();
+      const ticket = createNormalTicket();
       createTicketDraw(ticket.id, {
         done: false,
         date: formatDateISO(baseDate),
@@ -741,7 +892,7 @@ describe('Dynamic draw count calculation', () => {
     const exactlySevenDaysAgo = new Date();
     exactlySevenDaysAgo.setDate(exactlySevenDaysAgo.getDate() - 7);
 
-    const ticket = createTestTicket();
+    const ticket = createNormalTicket();
     createTicketDraw(ticket.id, {
       done: true,
       date: formatDateISO(exactlySevenDaysAgo),
@@ -756,7 +907,7 @@ describe('Dynamic draw count calculation', () => {
     const eightDaysAgo = new Date();
     eightDaysAgo.setDate(eightDaysAgo.getDate() - 8);
 
-    const ticket = createTestTicket();
+    const ticket = createNormalTicket();
     createTicketDraw(ticket.id, {
       done: true,
       date: formatDateISO(eightDaysAgo),
@@ -777,27 +928,27 @@ describe('Dynamic draw count calculation', () => {
 
     // Day 1: 5 tickets, 3 completed (60%)
     for (let i = 0; i < 3; i++) {
-      const ticket = createTestTicket();
+      const ticket = createNormalTicket();
       createTicketDraw(ticket.id, { done: true, date: dates[0] });
     }
     for (let i = 0; i < 2; i++) {
-      const ticket = createTestTicket();
+      const ticket = createNormalTicket();
       createTicketDraw(ticket.id, { done: false, date: dates[0] });
     }
 
     // Day 2: 6 tickets, 2 completed (33%)
     for (let i = 0; i < 2; i++) {
-      const ticket = createTestTicket();
+      const ticket = createNormalTicket();
       createTicketDraw(ticket.id, { done: true, date: dates[1] });
     }
     for (let i = 0; i < 4; i++) {
-      const ticket = createTestTicket();
+      const ticket = createNormalTicket();
       createTicketDraw(ticket.id, { done: false, date: dates[1] });
     }
 
     // Day 3: 7 tickets, 7 completed (100%)
     for (let i = 0; i < 7; i++) {
-      const ticket = createTestTicket();
+      const ticket = createNormalTicket();
       createTicketDraw(ticket.id, { done: true, date: dates[2] });
     }
 
@@ -818,53 +969,23 @@ describe('End-to-end draw count and frequency integration', () => {
     const baseDateISO = formatDateISO(threeDaysAgo);
 
     // 1 completed out of 5 total = 20% rate = 6 tickets
-    const completedTicket = createTestTicket();
+    const completedTicket = createNormalTicket();
     createTicketDraw(completedTicket.id, { done: true, date: baseDateISO });
     for (let i = 0; i < 4; i++) {
-      const ticket = createTestTicket();
+      const ticket = createNormalTicket();
       createTicketDraw(ticket.id, { done: false, date: baseDateISO });
     }
 
     // Create 8 must-draw tickets for Monday (more than the 6 we'll get)
     const mustDrawTickets = [];
     for (let i = 0; i < 8; i++) {
-      const ticket = createTestTicket({
-        title: `Must Draw ${i + 1}`,
-        frequency: 7,
-        must_draw_monday: 1,
-        can_draw_monday: 1,
-        must_draw_tuesday: 0,
-        can_draw_tuesday: 0,
-        must_draw_wednesday: 0,
-        can_draw_wednesday: 0,
-        must_draw_thursday: 0,
-        can_draw_thursday: 0,
-        must_draw_friday: 0,
-        can_draw_friday: 0,
-        must_draw_saturday: 0,
-        must_draw_sunday: 0,
-      });
+      const ticket = createMustDrawTicket('monday', 7, `Must Draw ${i + 1}`);
       mustDrawTickets.push(ticket);
     }
 
     // Create several normal tickets
     for (let i = 0; i < 10; i++) {
-      createTestTicket({
-        title: `Normal ${i + 1}`,
-        frequency: 7,
-        must_draw_monday: 0,
-        can_draw_monday: 1,
-        must_draw_tuesday: 0,
-        can_draw_tuesday: 0,
-        must_draw_wednesday: 0,
-        can_draw_wednesday: 0,
-        must_draw_thursday: 0,
-        can_draw_thursday: 0,
-        must_draw_friday: 0,
-        can_draw_friday: 0,
-        must_draw_saturday: 0,
-        must_draw_sunday: 0,
-      });
+      createNormalTicket(7, `Normal ${i + 1}`);
     }
 
     // Perform draw using dynamic count
@@ -891,84 +1012,22 @@ describe('End-to-end draw count and frequency integration', () => {
 
     // 8 completed out of 10 total = 80% rate = 9 tickets
     for (let i = 0; i < 8; i++) {
-      const ticket = createTestTicket({
-        title: `Historical Completed ${i + 1}`,
-        must_draw_monday: 0,
-        can_draw_monday: 0,
-        must_draw_tuesday: 0,
-        can_draw_tuesday: 0,
-        must_draw_wednesday: 0,
-        can_draw_wednesday: 0,
-        must_draw_thursday: 0,
-        can_draw_thursday: 0,
-        must_draw_friday: 0,
-        can_draw_friday: 0,
-        must_draw_saturday: 0,
-        can_draw_saturday: 0,
-        must_draw_sunday: 0,
-        can_draw_sunday: 0,
-      });
+      const ticket = createHistoricalTicket(`Historical Completed ${i + 1}`);
       createTicketDraw(ticket.id, { done: true, date: baseDateISO });
     }
     for (let i = 0; i < 2; i++) {
-      const ticket = createTestTicket({
-        title: `Historical Incomplete ${i + 1}`,
-        must_draw_monday: 0,
-        can_draw_monday: 0,
-        must_draw_tuesday: 0,
-        can_draw_tuesday: 0,
-        must_draw_wednesday: 0,
-        can_draw_wednesday: 0,
-        must_draw_thursday: 0,
-        can_draw_thursday: 0,
-        must_draw_friday: 0,
-        can_draw_friday: 0,
-        must_draw_saturday: 0,
-        can_draw_saturday: 0,
-        must_draw_sunday: 0,
-        can_draw_sunday: 0,
-      });
+      const ticket = createHistoricalTicket(`Historical Incomplete ${i + 1}`);
       createTicketDraw(ticket.id, { done: false, date: baseDateISO });
     }
 
     // Create 3 must-draw tickets
     for (let i = 0; i < 3; i++) {
-      createTestTicket({
-        title: `Must Draw ${i + 1}`,
-        frequency: 7,
-        must_draw_monday: 1,
-        can_draw_monday: 1,
-        must_draw_tuesday: 0,
-        can_draw_tuesday: 0,
-        must_draw_wednesday: 0,
-        can_draw_wednesday: 0,
-        must_draw_thursday: 0,
-        can_draw_thursday: 0,
-        must_draw_friday: 0,
-        can_draw_friday: 0,
-        must_draw_saturday: 0,
-        must_draw_sunday: 0,
-      });
+      createMustDrawTicket('monday', 7, `Must Draw ${i + 1}`);
     }
 
     // Create 10 normal tickets
     for (let i = 0; i < 10; i++) {
-      createTestTicket({
-        title: `Normal ${i + 1}`,
-        frequency: 7,
-        must_draw_monday: 0,
-        can_draw_monday: 1,
-        must_draw_tuesday: 0,
-        can_draw_tuesday: 0,
-        must_draw_wednesday: 0,
-        can_draw_wednesday: 0,
-        must_draw_thursday: 0,
-        can_draw_thursday: 0,
-        must_draw_friday: 0,
-        can_draw_friday: 0,
-        must_draw_saturday: 0,
-        must_draw_sunday: 0,
-      });
+      createNormalTicket(7, `Normal ${i + 1}`);
     }
 
     // Perform draw using dynamic count
@@ -996,84 +1055,31 @@ describe('End-to-end draw count and frequency integration', () => {
 
     // 3 completed out of 6 total = 50% rate = 7-8 tickets
     for (let i = 0; i < 3; i++) {
-      const ticket = createTestTicket({
-        title: `Historical Completed ${i + 1}`,
-        must_draw_monday: 0,
-        can_draw_monday: 0,
-        must_draw_tuesday: 0,
-        can_draw_tuesday: 0,
-        must_draw_wednesday: 0,
-        can_draw_wednesday: 0,
-        must_draw_thursday: 0,
-        can_draw_thursday: 0,
-        must_draw_friday: 0,
-        can_draw_friday: 0,
-        must_draw_saturday: 0,
-        can_draw_saturday: 0,
-        must_draw_sunday: 0,
-        can_draw_sunday: 0,
-      });
+      const ticket = createHistoricalTicket(`Historical Completed ${i + 1}`);
       createTicketDraw(ticket.id, { done: true, date: baseDateISO });
     }
     for (let i = 0; i < 3; i++) {
-      const ticket = createTestTicket({
-        title: `Historical Incomplete ${i + 1}`,
-        must_draw_monday: 0,
-        can_draw_monday: 0,
-        must_draw_tuesday: 0,
-        can_draw_tuesday: 0,
-        must_draw_wednesday: 0,
-        can_draw_wednesday: 0,
-        must_draw_thursday: 0,
-        can_draw_thursday: 0,
-        must_draw_friday: 0,
-        can_draw_friday: 0,
-        must_draw_saturday: 0,
-        can_draw_saturday: 0,
-        must_draw_sunday: 0,
-        can_draw_sunday: 0,
-      });
+      const ticket = createHistoricalTicket(`Historical Incomplete ${i + 1}`);
       createTicketDraw(ticket.id, { done: false, date: baseDateISO });
     }
 
     // Create tickets with different frequencies that were recently completed
-    const dailyTicket = createTestTicket({
-      title: 'Daily Ticket',
-      frequency: 1,
-      must_draw_monday: 1,
-      can_draw_monday: 1,
-      must_draw_tuesday: 0,
-      can_draw_tuesday: 1,
-      must_draw_wednesday: 0,
-      can_draw_wednesday: 1,
-      must_draw_thursday: 0,
-      can_draw_thursday: 1,
-      must_draw_friday: 0,
-      can_draw_friday: 1,
-      must_draw_saturday: 0,
-      can_draw_saturday: 1,
-      must_draw_sunday: 0,
-      can_draw_sunday: 1,
+    const dailyTicket = createMustDrawTicket('monday', 1, 'Daily Ticket');
+    // Add other days for daily ticket
+    [
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday',
+    ].forEach((day) => {
+      db.prepare(`UPDATE ticket SET can_draw_${day} = 1 WHERE id = ?`).run(
+        dailyTicket.id
+      );
     });
 
-    const weeklyTicket = createTestTicket({
-      title: 'Weekly Ticket',
-      frequency: 7,
-      must_draw_monday: 1,
-      can_draw_monday: 1,
-      must_draw_tuesday: 0,
-      can_draw_tuesday: 1,
-      must_draw_wednesday: 0,
-      can_draw_wednesday: 1,
-      must_draw_thursday: 0,
-      can_draw_thursday: 1,
-      must_draw_friday: 0,
-      can_draw_friday: 1,
-      must_draw_saturday: 0,
-      can_draw_saturday: 1,
-      must_draw_sunday: 0,
-      can_draw_sunday: 1,
-    });
+    const weeklyTicket = createMustDrawTicket('monday', 7, 'Weekly Ticket');
 
     // Complete daily ticket yesterday (should be excluded)
     // Complete weekly ticket 8 days ago (should be included)
@@ -1094,24 +1100,18 @@ describe('End-to-end draw count and frequency integration', () => {
 
     // Create normal tickets to fill out the draw
     for (let i = 0; i < 10; i++) {
-      createTestTicket({
-        title: `Normal ${i + 1}`,
-        frequency: 7,
-        must_draw_monday: 0,
-        can_draw_monday: 1,
-        must_draw_tuesday: 0,
-        can_draw_tuesday: 0,
-        must_draw_wednesday: 1,
-        can_draw_wednesday: 1,
-        must_draw_thursday: 0,
-        can_draw_thursday: 1,
-        must_draw_friday: 0,
-        can_draw_friday: 1,
-        must_draw_saturday: 0,
-        can_draw_saturday: 1,
-        must_draw_sunday: 0,
-        can_draw_sunday: 1,
-      });
+      createRestrictedNormalTicket(
+        {
+          can_draw_tuesday: false,
+          must_draw_thursday: true,
+          can_draw_thursday: true,
+          must_draw_saturday: true,
+          can_draw_saturday: true,
+          can_draw_sunday: false,
+        },
+        7,
+        `Normal ${i + 1}`
+      );
     }
 
     // Perform draw
@@ -1129,62 +1129,23 @@ describe('End-to-end draw count and frequency integration', () => {
     MockDate.set('2025-05-12T08:00:00.000Z'); // Monday 8 AM
 
     // Create some tickets with different frequencies
-    const dailyMustDraw = createTestTicket({
-      title: 'Daily Must Draw',
-      frequency: 1,
-      must_draw_monday: 1,
-      can_draw_monday: 1,
-      must_draw_tuesday: 1,
-      can_draw_tuesday: 1,
-      must_draw_wednesday: 1,
-      can_draw_wednesday: 1,
-      must_draw_thursday: 1,
-      can_draw_thursday: 1,
-      must_draw_friday: 1,
-      can_draw_friday: 1,
-      must_draw_saturday: 1,
-      can_draw_saturday: 1,
-      must_draw_sunday: 1,
-      can_draw_sunday: 1,
-    });
+    const dailyMustDraw = createDailyMustDrawTicket('Daily Must Draw');
 
-    const biDailyMustDraw = createTestTicket({
-      title: 'Bi-Daily Must Draw',
-      frequency: 2,
-      must_draw_monday: 1,
-      can_draw_monday: 1,
-      must_draw_tuesday: 0,
-      can_draw_tuesday: 1,
-      must_draw_wednesday: 1,
-      can_draw_wednesday: 1,
-      must_draw_thursday: 0,
-      can_draw_thursday: 1,
-      must_draw_friday: 1,
-      can_draw_friday: 1,
-      must_draw_saturday: 0,
-      must_draw_sunday: 1,
-    });
+    const biDailyMustDraw = createBiDailyMustDrawTicket('Bi-Daily Must Draw');
 
     // Create normal tickets
     for (let i = 0; i < 15; i++) {
-      createTestTicket({
-        title: `Normal ${i + 1}`,
-        frequency: 7,
-        must_draw_monday: 0,
-        can_draw_monday: 1,
-        must_draw_tuesday: 0,
-        can_draw_tuesday: 1,
-        must_draw_wednesday: 0,
-        can_draw_wednesday: 1,
-        must_draw_thursday: 1,
-        can_draw_thursday: 1,
-        must_draw_friday: 0,
-        can_draw_friday: 1,
-        must_draw_saturday: 1,
-        can_draw_saturday: 1,
-        must_draw_sunday: 0,
-        can_draw_sunday: 1,
-      });
+      createRestrictedNormalTicket(
+        {
+          must_draw_thursday: true,
+          can_draw_thursday: true,
+          must_draw_saturday: true,
+          can_draw_saturday: true,
+          can_draw_sunday: false,
+        },
+        7,
+        `Normal ${i + 1}`
+      );
     }
 
     // === MONDAY ===
@@ -1245,11 +1206,11 @@ describe('End-to-end draw count and frequency integration', () => {
 
     // Create exactly 6 draws with 3 completed (50% = 7-8 tickets)
     for (let i = 0; i < 3; i++) {
-      const ticket = createTestTicket();
+      const ticket = createNormalTicket();
       createTicketDraw(ticket.id, { done: true, date: baseDateISO });
     }
     for (let i = 0; i < 3; i++) {
-      const ticket = createTestTicket();
+      const ticket = createNormalTicket();
       createTicketDraw(ticket.id, { done: false, date: baseDateISO });
     }
 
@@ -1257,20 +1218,20 @@ describe('End-to-end draw count and frequency integration', () => {
     const biDailyTicket = createTestTicket({
       title: 'Bi-Daily Ticket',
       frequency: 2,
-      must_draw_monday: 1,
-      can_draw_monday: 1,
-      must_draw_tuesday: 0,
-      can_draw_tuesday: 1,
-      must_draw_wednesday: 0,
-      can_draw_wednesday: 1,
-      must_draw_thursday: 0,
-      can_draw_thursday: 1,
-      must_draw_friday: 0,
-      can_draw_friday: 1,
-      must_draw_saturday: 0,
-      can_draw_saturday: 1,
-      must_draw_sunday: 1,
-      can_draw_sunday: 1,
+      must_draw_monday: true,
+      can_draw_monday: true,
+      must_draw_tuesday: false,
+      can_draw_tuesday: true,
+      must_draw_wednesday: false,
+      can_draw_wednesday: true,
+      must_draw_thursday: false,
+      can_draw_thursday: true,
+      must_draw_friday: false,
+      can_draw_friday: true,
+      must_draw_saturday: false,
+      can_draw_saturday: true,
+      must_draw_sunday: true,
+      can_draw_sunday: true,
     });
 
     // Complete it exactly 2 days ago (at the frequency boundary)
@@ -1285,24 +1246,23 @@ describe('End-to-end draw count and frequency integration', () => {
 
     // Create filler tickets
     for (let i = 0; i < 10; i++) {
-      createTestTicket({
-        title: `Filler ${i + 1}`,
-        frequency: 7,
-        must_draw_monday: 0,
-        can_draw_monday: 1,
-        must_draw_tuesday: 0,
-        can_draw_tuesday: 0,
-        must_draw_wednesday: 0,
-        can_draw_wednesday: 1,
-        must_draw_thursday: 0,
-        can_draw_thursday: 1,
-        must_draw_friday: 0,
-        can_draw_friday: 1,
-        must_draw_saturday: 0,
-        can_draw_saturday: 1,
-        must_draw_sunday: 0,
-        can_draw_sunday: 1,
-      });
+      createRestrictedNormalTicket(
+        {
+          can_draw_tuesday: false,
+          must_draw_wednesday: false,
+          can_draw_wednesday: true,
+          must_draw_thursday: false,
+          can_draw_thursday: true,
+          must_draw_friday: false,
+          can_draw_friday: true,
+          must_draw_saturday: false,
+          can_draw_saturday: true,
+          must_draw_sunday: false,
+          can_draw_sunday: true,
+        },
+        7,
+        `Filler ${i + 1}`
+      );
     }
 
     // Check eligibility directly
