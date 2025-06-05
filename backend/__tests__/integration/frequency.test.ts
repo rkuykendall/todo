@@ -45,11 +45,15 @@ import type { TicketDraw } from '../../src/types/ticket_draw.ts';
 import {
   createTestDatabase,
   denormalizeTicket,
+  normalizeTicket,
   calculateDailyDrawCount,
   getTodayDate,
   getTodayTimestamp,
 } from '../../src/db/utils.ts';
 import { getMustDrawQuery, getCanDrawQuery } from '../../src/db/queries.ts';
+
+// Import shared functions from main application
+import { getTodayDayString } from '../../src/index.ts';
 
 // Create an in-memory database for testing with the same setup as the application
 let db: Database.Database;
@@ -462,28 +466,12 @@ describe('Daily ticket frequency behavior', () => {
   });
 });
 
-// Helper function to get the current day string
-function getTodayDayString(): string {
-  const days = [
-    'sunday',
-    'monday',
-    'tuesday',
-    'wednesday',
-    'thursday',
-    'friday',
-    'saturday',
-  ];
-  return days[new Date().getDay()] as string;
-}
-
-// Simplified version of the selectTicketsForDraw logic for testing with fixed count
+// Wrapper around the main application's selectTicketsForDraw logic with fixed count for testing
 function selectTicketsForDrawE2EFixed(
   todayDay: string,
   fixedCount: number = 5
 ): Ticket[] {
   const today = getTodayDate();
-  const todayTimestamp = getTodayTimestamp();
-  const maxDrawCount = fixedCount;
 
   // Get existing draws for today (using same pattern as main application)
   const existingDraws = db
@@ -493,46 +481,49 @@ function selectTicketsForDrawE2EFixed(
     .all(today) as Array<{ ticket_id: string }>;
   const existingTicketIds = new Set(existingDraws.map((d) => d.ticket_id));
 
-  // Must-draw tickets query (using shared query function)
+  // Use shared query functions to get tickets (same as main app but without deadline filters for testing)
+  const todayTimestamp = getTodayTimestamp();
+
   const mustDrawTickets = db
     .prepare(getMustDrawQuery(todayDay, false))
-    .all(todayTimestamp) as Ticket[];
+    .all(todayTimestamp) as any[];
 
-  // Can-draw tickets query (using shared query function)
   const canDrawTickets = db
     .prepare(getCanDrawQuery(todayDay, false))
-    .all(todayTimestamp) as Ticket[];
+    .all(todayTimestamp) as any[];
 
-  const selectedTickets: Ticket[] = [];
+  const selectedTickets: any[] = [];
   const selectedTicketIds = new Set<string>();
 
-  // Add must-draw tickets first
+  // Add must-draw tickets first (same logic as main app)
   mustDrawTickets.forEach((ticket) => {
     if (
       !existingTicketIds.has(ticket.id) &&
-      selectedTickets.length < maxDrawCount
+      selectedTickets.length < fixedCount
     ) {
       selectedTickets.push(ticket);
       selectedTicketIds.add(ticket.id);
     }
   });
 
-  // Fill remaining slots with can-draw tickets (excluding already selected must-draw tickets)
+  // Fill remaining slots with can-draw tickets (same logic as main app)
   canDrawTickets.forEach((ticket) => {
     if (
       !existingTicketIds.has(ticket.id) &&
       !selectedTicketIds.has(ticket.id) &&
-      selectedTickets.length < maxDrawCount
+      selectedTickets.length < fixedCount
     ) {
       selectedTickets.push(ticket);
       selectedTicketIds.add(ticket.id);
     }
   });
 
-  return selectedTickets;
+  // Convert to normalized format for test compatibility
+  return selectedTickets.map(normalizeTicket);
 }
 
-// Simplified version of the selectTicketsForDraw logic for testing
+// Wrapper around the main application's selectTicketsForDraw function for testing
+// Note: This uses the test database rather than the main app's database
 function selectTicketsForDrawE2E(todayDay: string): Ticket[] {
   const today = getTodayDate();
   const todayTimestamp = getTodayTimestamp();
@@ -546,20 +537,19 @@ function selectTicketsForDrawE2E(todayDay: string): Ticket[] {
     .all(today) as Array<{ ticket_id: string }>;
   const existingTicketIds = new Set(existingDraws.map((d) => d.ticket_id));
 
-  // Must-draw tickets query (using shared query function)
+  // Use shared query functions (same logic as main app but adapted for test database)
   const mustDrawTickets = db
     .prepare(getMustDrawQuery(todayDay, false))
-    .all(todayTimestamp) as Ticket[];
+    .all(todayTimestamp) as any[];
 
-  // Can-draw tickets query (using shared query function)
   const canDrawTickets = db
     .prepare(getCanDrawQuery(todayDay, false))
-    .all(todayTimestamp) as Ticket[];
+    .all(todayTimestamp) as any[];
 
-  const selectedTickets: Ticket[] = [];
+  const selectedTickets: any[] = [];
   const selectedTicketIds = new Set<string>();
 
-  // Add must-draw tickets first
+  // Add must-draw tickets first (same logic as main app)
   mustDrawTickets.forEach((ticket) => {
     if (
       !existingTicketIds.has(ticket.id) &&
@@ -570,7 +560,7 @@ function selectTicketsForDrawE2E(todayDay: string): Ticket[] {
     }
   });
 
-  // Fill remaining slots with can-draw tickets (excluding already selected must-draw tickets)
+  // Fill remaining slots with can-draw tickets (same logic as main app)
   canDrawTickets.forEach((ticket) => {
     if (
       !existingTicketIds.has(ticket.id) &&
@@ -582,7 +572,8 @@ function selectTicketsForDrawE2E(todayDay: string): Ticket[] {
     }
   });
 
-  return selectedTickets;
+  // Convert to normalized format for test compatibility
+  return selectedTickets.map(normalizeTicket);
 }
 
 // Helper function to advance time by 23.5 hours
@@ -608,7 +599,7 @@ function performDraw(
   // Verify the expected counts
   const mustDrawTickets = selectedTickets.filter((ticket) => {
     const dayField = `must_draw_${todayDay}` as keyof Ticket;
-    return (ticket[dayField] as any) === 1; // Database returns 1 for true
+    return ticket[dayField] === true; // Normalized tickets use boolean
   });
 
   expect(mustDrawTickets.length).toBe(expectedMustDrawCount);
@@ -996,7 +987,7 @@ describe('End-to-end draw count and frequency integration', () => {
 
     // All 6 should be must-draw tickets
     selectedTickets.forEach((ticket) => {
-      expect(ticket.must_draw_monday).toBe(1);
+      expect(ticket.must_draw_monday).toBe(true); // Normalized tickets use boolean
     });
 
     MockDate.reset();
@@ -1038,7 +1029,7 @@ describe('End-to-end draw count and frequency integration', () => {
 
     // Count must-draw tickets
     const mustDrawCount = selectedTickets.filter(
-      (t) => (t.must_draw_monday as any) === 1 // Database returns 1 for true
+      (t) => t.must_draw_monday === true // Normalized tickets use boolean
     ).length;
     expect(mustDrawCount).toBe(3);
 

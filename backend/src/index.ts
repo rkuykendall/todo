@@ -269,7 +269,7 @@ const deleteTicket: AsyncRequestHandler = async (req, res, next) => {
 };
 
 // Utility: Get today's lowercase day name (e.g., "wednesday")
-function getTodayDayString(): string {
+export function getTodayDayString(): string {
   return new Date()
     .toLocaleString('en-US', {
       weekday: 'long',
@@ -310,7 +310,7 @@ interface TicketDrawResult {
   totalDraws: number;
 }
 
-function selectTicketsForDraw(
+export function selectTicketsForDraw(
   todayDay: string,
   existingTicketIds: Set<string>
 ): RawDbTicket[] {
