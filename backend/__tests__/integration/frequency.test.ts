@@ -158,66 +158,37 @@ function createTicketDraw(
   };
 }
 
-// Fixed version of the query (using <= operator)
-function isTicketEligibleFixed(
-  ticketId: string,
-  today: string
-): Ticket | undefined {
-  const query = `
-    SELECT t.* FROM ticket t
-    WHERE t.id = ?
-    AND (
-      t.last_drawn IS NULL
-      OR (
-        NOT EXISTS (
-          SELECT 1 FROM ticket_draw td
-          WHERE td.ticket_id = t.id
-          AND td.done = 1
-          AND julianday(?) - julianday(td.created_at) <= t.frequency
-        )
-      )
-    )
-  `;
+// Helper function to check if a specific ticket is eligible using shared query logic
+function isTicketEligible(ticketId: string, todayDay: string): boolean {
+  const todayTimestamp = getTodayTimestamp();
 
-  return db.prepare(query).get(ticketId, today) as Ticket | undefined;
-}
+  // Check if ticket appears in must-draw results
+  const mustDrawTickets = db
+    .prepare(getMustDrawQuery(todayDay, false))
+    .all(todayTimestamp) as Ticket[];
 
-// Original broken version of the query (using < operator)
-function isTicketEligibleBroken(
-  ticketId: string,
-  today: string
-): Ticket | undefined {
-  const query = `
-    SELECT t.* FROM ticket t
-    WHERE t.id = ?
-    AND (
-      t.last_drawn IS NULL
-      OR (
-        NOT EXISTS (
-          SELECT 1 FROM ticket_draw td
-          WHERE td.ticket_id = t.id
-          AND td.done = 1
-          AND julianday(?) - julianday(td.created_at) < t.frequency
-        )
-      )
-    )
-  `;
+  if (mustDrawTickets.some((t) => t.id === ticketId)) {
+    return true;
+  }
 
-  return db.prepare(query).get(ticketId, today) as Ticket | undefined;
+  // Check if ticket appears in can-draw results
+  const canDrawTickets = db
+    .prepare(getCanDrawQuery(todayDay, false))
+    .all(todayTimestamp) as Ticket[];
+
+  return canDrawTickets.some((t) => t.id === ticketId);
 }
 
 describe('Ticket frequency behavior', () => {
   test('ticket is eligible for draw if never drawn before', () => {
     // Arrange
     const ticket = createTestTicket({ frequency: 7 });
-    const today = getTodayDate();
 
     // Act
-    const eligibleTicket = isTicketEligibleFixed(ticket.id, today);
+    const isEligible = isTicketEligible(ticket.id, 'monday');
 
     // Assert
-    expect(eligibleTicket).not.toBeUndefined();
-    expect(eligibleTicket?.id).toBe(ticket.id);
+    expect(isEligible).toBe(true);
   });
 
   test('ticket is NOT eligible if recently drawn and completed', () => {
@@ -231,13 +202,12 @@ describe('Ticket frequency behavior', () => {
 
     // Set date to 2 days later
     MockDate.set('2025-05-03');
-    const today = getTodayDate();
 
     // Act
-    const eligibleTicket = isTicketEligibleFixed(ticket.id, today);
+    const isEligible = isTicketEligible(ticket.id, 'monday');
 
     // Assert - Should not be eligible since it was completed 2 days ago with 7-day frequency
-    expect(eligibleTicket).toBeUndefined();
+    expect(isEligible).toBe(false);
   });
 
   test('ticket IS eligible if recently drawn but only skipped (not completed)', () => {
@@ -255,14 +225,12 @@ describe('Ticket frequency behavior', () => {
 
     // Set date to 2 days later
     MockDate.set('2025-05-03');
-    const today = getTodayDate();
 
     // Act
-    const eligibleTicket = isTicketEligibleFixed(ticket.id, today);
+    const isEligible = isTicketEligible(ticket.id, 'monday');
 
     // Assert - Should be eligible since it was only skipped, not completed
-    expect(eligibleTicket).not.toBeUndefined();
-    expect(eligibleTicket?.id).toBe(ticket.id);
+    expect(isEligible).toBe(true);
   });
 
   test('ticket IS eligible if drawn and completed outside frequency period', () => {
@@ -276,14 +244,12 @@ describe('Ticket frequency behavior', () => {
 
     // Set date to 8 days later
     MockDate.set('2025-05-09');
-    const today = getTodayDate();
 
     // Act
-    const eligibleTicket = isTicketEligibleFixed(ticket.id, today);
+    const isEligible = isTicketEligible(ticket.id, 'monday');
 
     // Assert - Should be eligible since frequency period has passed
-    expect(eligibleTicket).not.toBeUndefined();
-    expect(eligibleTicket?.id).toBe(ticket.id);
+    expect(isEligible).toBe(true);
   });
 });
 
@@ -300,33 +266,12 @@ describe('Daily ticket frequency behavior', () => {
 
     // Set date to today
     MockDate.set('2025-05-09'); // Today
-    const today = getTodayDate();
 
     // Act - Test fixed logic (<=)
-    const eligibleTicketFixed = isTicketEligibleFixed(ticket.id, today);
+    const isEligible = isTicketEligible(ticket.id, 'monday');
 
     // Assert - Should NOT be eligible with fixed logic
-    expect(eligibleTicketFixed).toBeUndefined();
-  });
-
-  test('daily ticket (frequency=1) completed yesterday IS incorrectly eligible today with broken logic', () => {
-    // Arrange
-    MockDate.set('2025-05-08'); // Yesterday
-    const startDate = getTodayDate();
-    const ticket = createTestTicket({ frequency: 1 }); // Daily frequency
-
-    // Create a completed draw from yesterday
-    createTicketDraw(ticket.id, { done: true, date: startDate });
-
-    // Set date to today
-    MockDate.set('2025-05-09'); // Today
-    const today = getTodayDate();
-
-    // Act - Test broken logic (<)
-    const eligibleTicketBroken = isTicketEligibleBroken(ticket.id, today);
-
-    // Assert - With broken logic, it would incorrectly be eligible
-    expect(eligibleTicketBroken).not.toBeUndefined();
+    expect(isEligible).toBe(false);
   });
 
   test('daily ticket (frequency=1) completed 2 days ago IS eligible today', () => {
@@ -340,14 +285,12 @@ describe('Daily ticket frequency behavior', () => {
 
     // Set date to today
     MockDate.set('2025-05-09'); // Today
-    const today = getTodayDate();
 
     // Act
-    const eligibleTicket = isTicketEligibleFixed(ticket.id, today);
+    const isEligible = isTicketEligible(ticket.id, 'monday');
 
     // Assert - Should be eligible since frequency period (1 day) has passed
-    expect(eligibleTicket).not.toBeUndefined();
-    expect(eligibleTicket?.id).toBe(ticket.id);
+    expect(isEligible).toBe(true);
   });
 });
 
@@ -671,11 +614,8 @@ describe('End-to-end drawing behavior with 23.5 hour intervals', () => {
     advanceTime23_5Hours(); // Monday 8 AM -> Tuesday 7:30 AM
 
     // Check if the daily ticket is eligible
-    const tuesdayEligible = isTicketEligibleFixed(
-      dailyTicket.id,
-      getTodayTimestamp()
-    );
-    expect(tuesdayEligible).toBeUndefined(); // Should NOT be eligible
+    const tuesdayEligible = isTicketEligible(dailyTicket.id, 'tuesday');
+    expect(tuesdayEligible).toBe(false); // Should NOT be eligible
 
     MockDate.reset();
   });
@@ -702,8 +642,8 @@ describe('End-to-end drawing behavior with 23.5 hour intervals', () => {
       newTime.setHours(newTime.getHours() + hours);
       MockDate.set(newTime);
 
-      const eligible = isTicketEligibleFixed(ticket.id, getTodayTimestamp());
-      expect(!!eligible).toBe(expectedEligible);
+      const eligible = isTicketEligible(ticket.id, 'tuesday');
+      expect(eligible).toBe(expectedEligible);
     });
 
     MockDate.reset();
@@ -736,14 +676,14 @@ describe('End-to-end drawing behavior with 23.5 hour intervals', () => {
 
     tuesdayTimes.forEach(({ time }) => {
       MockDate.set(time);
-      const eligible = isTicketEligibleFixed(ticket.id, getTodayTimestamp());
-      expect(eligible).toBeUndefined(); // All should be ineligible (within frequency period)
+      const eligible = isTicketEligible(ticket.id, 'tuesday');
+      expect(eligible).toBe(false); // All should be ineligible (within frequency period)
     });
 
     // Test Tuesday 9:00 AM (25 hours later) - should be eligible
     MockDate.set('2025-05-13T09:00:00.000Z');
-    const laterEligible = isTicketEligibleFixed(ticket.id, getTodayTimestamp());
-    expect(laterEligible).toBeDefined(); // Should be eligible
+    const laterEligible = isTicketEligible(ticket.id, 'tuesday');
+    expect(laterEligible).toBe(true); // Should be eligible
 
     MockDate.reset();
   });
@@ -1482,19 +1422,13 @@ describe('End-to-end draw count and frequency integration', () => {
     }
 
     // Check eligibility directly
-    const eligible = isTicketEligibleFixed(
-      biDailyTicket.id,
-      getTodayTimestamp()
-    );
-    expect(eligible).toBeUndefined(); // Should NOT be eligible (julianday diff = 2, frequency = 2, so 2 <= 2 is true)
+    const eligible = isTicketEligible(biDailyTicket.id, 'monday');
+    expect(eligible).toBe(false); // Should NOT be eligible (julianday diff = 2, frequency = 2, so 2 <= 2 is true)
 
     // Advance by 1 hour to exceed the boundary
     MockDate.set('2025-05-12T09:00:00.000Z'); // Monday 9 AM
-    const eligibleLater = isTicketEligibleFixed(
-      biDailyTicket.id,
-      getTodayTimestamp()
-    );
-    expect(eligibleLater).toBeDefined(); // Should be eligible now
+    const eligibleLater = isTicketEligible(biDailyTicket.id, 'monday');
+    expect(eligibleLater).toBe(true); // Should be eligible now
 
     MockDate.reset();
   });
