@@ -42,16 +42,17 @@ import MockDate from 'mockdate';
 import { v4 as uuidv4 } from 'uuid';
 import { formatDateISO, type Ticket } from '@todo/shared';
 import type { TicketDraw } from '../../src/types/ticket_draw.ts';
-import { createTestDatabase } from '../../src/db/utils.ts';
+import {
+  createTestDatabase,
+  denormalizeTicket,
+  calculateDailyDrawCount,
+  getTodayDate,
+  getTodayTimestamp,
+} from '../../src/db/utils.ts';
 import { getMustDrawQuery, getCanDrawQuery } from '../../src/db/queries.ts';
 
 // Create an in-memory database for testing with the same setup as the application
 let db: Database.Database;
-
-// Mock date functions that would be in your main code
-function getTodayDate(): string {
-  return formatDateISO(new Date());
-}
 
 // Set up schema for tests - using the same schema as the main application
 beforeAll(() => {
@@ -100,23 +101,8 @@ function createTestTicket(overrides = {}): Ticket {
 
   const ticketData = { ...defaults, ...overrides } as Ticket;
 
-  // Convert boolean values to numbers for SQLite
-  const dbData = { ...ticketData };
-  (dbData as any).recurring = ticketData.recurring ? 1 : 0;
-  (dbData as any).can_draw_monday = ticketData.can_draw_monday ? 1 : 0;
-  (dbData as any).must_draw_monday = ticketData.must_draw_monday ? 1 : 0;
-  (dbData as any).can_draw_tuesday = ticketData.can_draw_tuesday ? 1 : 0;
-  (dbData as any).must_draw_tuesday = ticketData.must_draw_tuesday ? 1 : 0;
-  (dbData as any).can_draw_wednesday = ticketData.can_draw_wednesday ? 1 : 0;
-  (dbData as any).must_draw_wednesday = ticketData.must_draw_wednesday ? 1 : 0;
-  (dbData as any).can_draw_thursday = ticketData.can_draw_thursday ? 1 : 0;
-  (dbData as any).must_draw_thursday = ticketData.must_draw_thursday ? 1 : 0;
-  (dbData as any).can_draw_friday = ticketData.can_draw_friday ? 1 : 0;
-  (dbData as any).must_draw_friday = ticketData.must_draw_friday ? 1 : 0;
-  (dbData as any).can_draw_saturday = ticketData.can_draw_saturday ? 1 : 0;
-  (dbData as any).must_draw_saturday = ticketData.must_draw_saturday ? 1 : 0;
-  (dbData as any).can_draw_sunday = ticketData.can_draw_sunday ? 1 : 0;
-  (dbData as any).must_draw_sunday = ticketData.must_draw_sunday ? 1 : 0;
+  // Use shared function to convert boolean values to numbers for SQLite
+  const dbData = denormalizeTicket(ticketData);
 
   const columns = Object.keys(dbData);
   const placeholders = columns.map(() => '?').join(', ');
@@ -294,11 +280,6 @@ describe('Daily ticket frequency behavior', () => {
   });
 });
 
-// Helper function to get timestamp format for consistency with Julian day calculations
-function getTodayTimestamp(): string {
-  return new Date().toISOString();
-}
-
 // Helper function to get the current day string
 function getTodayDayString(): string {
   const days = [
@@ -369,60 +350,11 @@ function selectTicketsForDrawE2EFixed(
   return selectedTickets;
 }
 
-// Helper function to simulate the calculateDailyDrawCount logic (matching main application)
-function calculateDailyDrawCountTest(): number {
-  // Get one-week-ago date (same logic as main application)
-  const today = new Date();
-  const oneWeekAgo = new Date();
-  oneWeekAgo.setDate(today.getDate() - 7);
-
-  const todayISO = formatDateISO(today);
-  const oneWeekAgoISO = formatDateISO(oneWeekAgo);
-
-  // Count completed draws in the past week (same query as main application)
-  const completedDraws = db
-    .prepare(
-      `
-    SELECT COUNT(*) as count 
-    FROM ticket_draw 
-    WHERE done = 1 
-    AND datetime(created_at) BETWEEN datetime(?) AND datetime(?)
-  `
-    )
-    .get(oneWeekAgoISO, todayISO) as { count: number };
-
-  // Count total draws in the past week (same query as main application)
-  const totalDraws = db
-    .prepare(
-      `
-    SELECT COUNT(*) as count 
-    FROM ticket_draw 
-    WHERE datetime(created_at) BETWEEN datetime(?) AND datetime(?)
-  `
-    )
-    .get(oneWeekAgoISO, todayISO) as { count: number };
-
-  // Calculate completion rate with better default handling (same logic as main application)
-  let drawCount = 5; // Default minimum if no data
-
-  if (totalDraws.count > 0) {
-    // If we have data, calculate based on completion rate
-    const completionRate = completedDraws.count / totalDraws.count;
-    const minDrawCount = 5;
-    const maxDrawCount = 10;
-    drawCount = Math.round(
-      minDrawCount + completionRate * (maxDrawCount - minDrawCount)
-    );
-  }
-
-  return drawCount;
-}
-
 // Simplified version of the selectTicketsForDraw logic for testing
 function selectTicketsForDrawE2E(todayDay: string): Ticket[] {
   const today = getTodayDate();
   const todayTimestamp = getTodayTimestamp();
-  const maxDrawCount = calculateDailyDrawCountTest();
+  const maxDrawCount = calculateDailyDrawCount(db);
 
   // Get existing draws for today (using same pattern as main application)
   const existingDraws = db
@@ -690,57 +622,9 @@ describe('End-to-end drawing behavior with 23.5 hour intervals', () => {
 });
 
 describe('Dynamic draw count calculation', () => {
-  // Helper function to simulate the calculateDailyDrawCount logic
-  function calculateDailyDrawCountTest(): number {
-    // Get one-week-ago date
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-    const todayISO = formatDateISO(new Date());
-    const oneWeekAgoISO = formatDateISO(oneWeekAgo);
-
-    // Count completed draws in the past week
-    const completedDraws = db
-      .prepare(
-        `
-      SELECT COUNT(*) as count 
-      FROM ticket_draw 
-      WHERE done = 1 
-      AND datetime(created_at) BETWEEN datetime(?) AND datetime(?)
-    `
-      )
-      .get(oneWeekAgoISO, todayISO) as { count: number };
-
-    // Count total draws in the past week
-    const totalDraws = db
-      .prepare(
-        `
-      SELECT COUNT(*) as count 
-      FROM ticket_draw 
-      WHERE datetime(created_at) BETWEEN datetime(?) AND datetime(?)
-    `
-      )
-      .get(oneWeekAgoISO, todayISO) as { count: number };
-
-    // Calculate completion rate with better default handling
-    let drawCount = 5; // Default minimum if no data
-
-    if (totalDraws.count > 0) {
-      // If we have data, calculate based on completion rate
-      const completionRate = completedDraws.count / totalDraws.count;
-      const minDrawCount = 5;
-      const maxDrawCount = 10;
-      drawCount = Math.round(
-        minDrawCount + completionRate * (maxDrawCount - minDrawCount)
-      );
-    }
-
-    return drawCount;
-  }
-
   test('should return 5 when no historical data exists', () => {
     // No draws exist, should default to 5
-    const drawCount = calculateDailyDrawCountTest();
+    const drawCount = calculateDailyDrawCount(db);
     expect(drawCount).toBe(5);
   });
 
@@ -757,7 +641,7 @@ describe('Dynamic draw count calculation', () => {
       });
     }
 
-    const drawCount = calculateDailyDrawCountTest();
+    const drawCount = calculateDailyDrawCount(db);
     expect(drawCount).toBe(5);
   });
 
@@ -774,7 +658,7 @@ describe('Dynamic draw count calculation', () => {
       });
     }
 
-    const drawCount = calculateDailyDrawCountTest();
+    const drawCount = calculateDailyDrawCount(db);
     expect(drawCount).toBe(10);
   });
 
@@ -801,7 +685,7 @@ describe('Dynamic draw count calculation', () => {
       });
     }
 
-    const drawCount = calculateDailyDrawCountTest();
+    const drawCount = calculateDailyDrawCount(db);
     expect(drawCount).toBe(8); // 4/7 ≈ 0.57, so 5 + (0.57 * 5) ≈ 8
   });
 
@@ -821,7 +705,7 @@ describe('Dynamic draw count calculation', () => {
       });
     }
 
-    const drawCount = calculateDailyDrawCountTest();
+    const drawCount = calculateDailyDrawCount(db);
     expect(drawCount).toBe(10); // 100% completion rate
   });
 
@@ -848,7 +732,7 @@ describe('Dynamic draw count calculation', () => {
       });
     }
 
-    const drawCount = calculateDailyDrawCountTest();
+    const drawCount = calculateDailyDrawCount(db);
     expect(drawCount).toBe(6); // 1/5 = 20% completion rate
   });
 
@@ -863,7 +747,7 @@ describe('Dynamic draw count calculation', () => {
       date: formatDateISO(exactlySevenDaysAgo),
     });
 
-    const drawCount = calculateDailyDrawCountTest();
+    const drawCount = calculateDailyDrawCount(db);
     expect(drawCount).toBe(10); // Should be included, 100% rate
   });
 
@@ -878,7 +762,7 @@ describe('Dynamic draw count calculation', () => {
       date: formatDateISO(eightDaysAgo),
     });
 
-    const drawCount = calculateDailyDrawCountTest();
+    const drawCount = calculateDailyDrawCount(db);
     expect(drawCount).toBe(5); // Should be excluded, default to 5
   });
 
@@ -919,7 +803,7 @@ describe('Dynamic draw count calculation', () => {
 
     // Total: 18 tickets, 12 completed = 67% completion rate
     // Expected: 5 + (0.67 * 5) = ~8 tickets
-    const drawCount = calculateDailyDrawCountTest();
+    const drawCount = calculateDailyDrawCount(db);
     expect(drawCount).toBe(8);
   });
 });

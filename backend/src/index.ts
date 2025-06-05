@@ -4,8 +4,7 @@ import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
 import rateLimit from 'express-rate-limit';
 import db from './db/index.ts';
-import { dayFields, formatDateISO } from '@todo/shared';
-import type { Day, Ticket } from '@todo/shared';
+import { dayFields } from '@todo/shared';
 import { NewTicketSchema, UpdateTicketSchema } from './types/ticket.ts';
 import { PatchTicketDrawSchema, type TicketDraw } from './types/ticket_draw.ts';
 import {
@@ -14,6 +13,14 @@ import {
   getDeadlineTicketsQuery,
   getApproachingDeadlineQuery,
 } from './db/queries.ts';
+import {
+  type RawDbTicket,
+  type RawDbDraw,
+  normalizeTicket,
+  denormalizeTicket,
+  calculateDailyDrawCount,
+  getTodayDate,
+} from './db/utils.ts';
 
 const app = express();
 app.use(cors());
@@ -120,98 +127,12 @@ type AsyncRequestHandler = (
   next: NextFunction
 ) => Promise<void>;
 
-// Raw database types with numbers instead of booleans
-type RawDbTicket = {
-  id: string;
-  title: string;
-  created_at: string;
-  recurring: number;
-  done: string | null;
-  last_drawn: string | null;
-  deadline: string | null;
-  frequency: number;
-} & Record<`can_draw_${Day}` | `must_draw_${Day}`, number>;
-
-interface RawDbDraw {
-  id: string;
-  created_at: string;
-  ticket_id: string;
-  done: number;
-  skipped: number;
-}
-
-function normalizeTicket(ticket: RawDbTicket): Ticket {
-  // Convert can_draw and must_draw fields into a temporary object
-  const dayFieldValues = {} as Record<
-    `can_draw_${Day}` | `must_draw_${Day}`,
-    boolean
-  >;
-
-  for (const day of dayFields) {
-    const canDrawKey = `can_draw_${day}` as const;
-    const mustDrawKey = `must_draw_${day}` as const;
-    dayFieldValues[canDrawKey] = Boolean(ticket[canDrawKey]);
-    dayFieldValues[mustDrawKey] = Boolean(ticket[mustDrawKey]);
-  }
-
-  // Return combined object
-  return {
-    id: ticket.id,
-    title: ticket.title,
-    created_at: ticket.created_at,
-    recurring: Boolean(ticket.recurring),
-    done: ticket.done,
-    last_drawn: ticket.last_drawn,
-    deadline: ticket.deadline,
-    frequency: ticket.frequency ?? 1,
-    ...dayFieldValues,
-  };
-}
-
 function normalizeDraw(draw: RawDbDraw): TicketDraw {
   return {
     ...draw,
     done: Boolean(draw.done),
     skipped: Boolean(draw.skipped),
   };
-}
-
-function denormalizeTicket(input: Partial<Ticket>): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-
-  // Copy non-boolean fields directly
-  const nonBoolFields = [
-    'id',
-    'title',
-    'created_at',
-    'done',
-    'last_drawn',
-    'deadline',
-    'frequency',
-  ];
-  for (const field of nonBoolFields) {
-    if (field in input) {
-      result[field] = input[field as keyof typeof input];
-    }
-  }
-
-  // Convert boolean fields to numbers
-  if ('recurring' in input) {
-    result.recurring = Number(input.recurring);
-  }
-
-  for (const day of dayFields) {
-    const canDrawKey = `can_draw_${day}` as keyof Ticket;
-    const mustDrawKey = `must_draw_${day}` as keyof Ticket;
-    if (canDrawKey in input) {
-      result[canDrawKey] = Number(input[canDrawKey]);
-    }
-    if (mustDrawKey in input) {
-      result[mustDrawKey] = Number(input[mustDrawKey]);
-    }
-  }
-
-  return result;
 }
 
 const getTickets: AsyncRequestHandler = async (_req, res, next) => {
@@ -357,15 +278,6 @@ function getTodayDayString(): string {
     .toLowerCase();
 }
 
-// Utility: Get ISO date string for YYYY-MM-DD (used for filtering)
-function getTodayDate(): string {
-  const date = new Date();
-  const central = new Date(
-    date.toLocaleString('en-US', { timeZone: 'America/Chicago' })
-  );
-  return formatDateISO(central);
-}
-
 const getTicketDraw: AsyncRequestHandler = async (_req, res, next) => {
   try {
     const today = getTodayDate();
@@ -398,72 +310,12 @@ interface TicketDrawResult {
   totalDraws: number;
 }
 
-/**
- * Calculates the number of tickets to draw based on completion rate in past week
- * Returns a value between 5-10: 5 if few tickets completed, 10 if many completed
- */
-function calculateDailyDrawCount(): number {
-  // Get one-week-ago date
-  const today = new Date();
-  const oneWeekAgo = new Date();
-  oneWeekAgo.setDate(today.getDate() - 7);
-
-  const todayISO = formatDateISO(today);
-  const oneWeekAgoISO = formatDateISO(oneWeekAgo);
-
-  // Count completed draws in the past week
-  const completedDraws = db
-    .prepare(
-      `
-    SELECT COUNT(*) as count 
-    FROM ticket_draw 
-    WHERE done = 1 
-    AND datetime(created_at) BETWEEN datetime(?) AND datetime(?)
-  `
-    )
-    .get(oneWeekAgoISO, todayISO) as { count: number };
-
-  // Count total draws in the past week
-  const totalDraws = db
-    .prepare(
-      `
-    SELECT COUNT(*) as count 
-    FROM ticket_draw 
-    WHERE datetime(created_at) BETWEEN datetime(?) AND datetime(?)
-  `
-    )
-    .get(oneWeekAgoISO, todayISO) as { count: number };
-
-  // Calculate completion rate with better default handling
-  let drawCount = 5; // Default minimum if no data
-
-  if (totalDraws.count > 0) {
-    // If we have data, calculate based on completion rate
-    const completionRate = completedDraws.count / totalDraws.count;
-    const minDrawCount = 5;
-    const maxDrawCount = 10;
-    drawCount = Math.round(
-      minDrawCount + completionRate * (maxDrawCount - minDrawCount)
-    );
-    console.log(
-      `Daily draw count: ${drawCount} (based on ${completedDraws.count}/${totalDraws.count} completed in past week)`
-    );
-  } else {
-    // No draw data from past week, use minimum value
-    console.log(
-      `Daily draw count: ${drawCount} (default - no ticket data from past week)`
-    );
-  }
-
-  return drawCount;
-}
-
 function selectTicketsForDraw(
   todayDay: string,
   existingTicketIds: Set<string>
 ): RawDbTicket[] {
   const today = getTodayDate();
-  const maxDrawCount = calculateDailyDrawCount();
+  const maxDrawCount = calculateDailyDrawCount(db);
 
   // First, prioritize tickets with deadline today or in the past
   const deadlineTickets = db
