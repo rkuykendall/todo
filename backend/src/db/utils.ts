@@ -260,10 +260,35 @@ export function calculateDailyDrawCount(db: Database.Database): number {
 }
 
 /**
- * Get today's date in ISO format (YYYY-MM-DD)
+ * Get today's date in ISO format (YYYY-MM-DD) using Central Time
  */
 export function getTodayDate(): string {
-  return formatDateISO(new Date());
+  const now = new Date();
+
+  // For MockDate compatibility, we need to use a more direct approach
+  // Calculate Central Time by creating a date in Central timezone
+  try {
+    // This should work with MockDate
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Chicago',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+
+    return formatter.format(now); // This returns YYYY-MM-DD format
+  } catch {
+    // Fallback to UTC-based calculation with manual Central Time offset
+    // Central Time is typically UTC-6 (winter) or UTC-5 (summer)
+    const centralOffset = now.getTimezoneOffset() + 6 * 60; // Assume CST (UTC-6)
+    const centralTime = new Date(now.getTime() - centralOffset * 60000);
+
+    const year = centralTime.getFullYear();
+    const month = String(centralTime.getMonth() + 1).padStart(2, '0');
+    const day = String(centralTime.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  }
 }
 
 /**

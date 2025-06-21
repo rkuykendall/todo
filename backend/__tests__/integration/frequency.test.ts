@@ -58,6 +58,48 @@ import { getTodayDayString } from '../../src/index.ts';
 // Create an in-memory database for testing with the same setup as the application
 let db: Database.Database;
 
+/**
+ * Get a timestamp in Central Time format that's compatible with the database
+ * This matches the format used by the actual application
+ */
+function getTodayTimestampCT(): string {
+  const now = new Date();
+
+  // Convert to Central Time using the same logic as getTodayDate but with full timestamp
+  try {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Chicago',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+
+    const parts = formatter.formatToParts(now);
+    const partsMap = Object.fromEntries(
+      parts.map((part) => [part.type, part.value])
+    );
+
+    return `${partsMap.year}-${partsMap.month}-${partsMap.day} ${partsMap.hour}:${partsMap.minute}:${partsMap.second}`;
+  } catch {
+    // Fallback to manual Central Time calculation
+    const centralOffset = now.getTimezoneOffset() + 6 * 60; // Assume CST (UTC-6)
+    const centralTime = new Date(now.getTime() - centralOffset * 60000);
+
+    const year = centralTime.getFullYear();
+    const month = String(centralTime.getMonth() + 1).padStart(2, '0');
+    const day = String(centralTime.getDate()).padStart(2, '0');
+    const hour = String(centralTime.getHours()).padStart(2, '0');
+    const minute = String(centralTime.getMinutes()).padStart(2, '0');
+    const second = String(centralTime.getSeconds()).padStart(2, '0');
+
+    return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+  }
+}
+
 // Set up schema for tests - using the same schema as the main application
 beforeAll(() => {
   // Initialize test database with the same setup as the application
@@ -294,7 +336,15 @@ function createTicketDraw(
   }: { done?: boolean; skipped?: boolean; date?: string | null } = {}
 ): TicketDraw {
   const drawId = uuidv4();
-  const createdAt = date || new Date().toISOString();
+  // Use the same timestamp logic as the actual application
+  // If date is provided, use it; otherwise use database's localtime
+  const createdAt =
+    date ||
+    (
+      db.prepare("SELECT datetime('now', 'localtime') as timestamp").get() as {
+        timestamp: string;
+      }
+    ).timestamp;
 
   db.prepare(
     `INSERT INTO ticket_draw (id, created_at, ticket_id, done, skipped) VALUES (?, ?, ?, ?, ?)`
@@ -317,12 +367,12 @@ function createTicketDraw(
 
 // Helper function to check if a specific ticket is eligible using shared query logic
 function isTicketEligible(ticketId: string, todayDay: string): boolean {
-  const todayTimestamp = getTodayTimestamp();
+  const today = getTodayDate(); // Use getTodayDate for consistency with the main application
 
   // Check if ticket appears in must-draw results
   const mustDrawTickets = db
     .prepare(getMustDrawQuery(todayDay, false))
-    .all(todayTimestamp) as Ticket[];
+    .all(today) as Ticket[];
 
   if (mustDrawTickets.some((t) => t.id === ticketId)) {
     return true;
@@ -331,7 +381,7 @@ function isTicketEligible(ticketId: string, todayDay: string): boolean {
   // Check if ticket appears in can-draw results
   const canDrawTickets = db
     .prepare(getCanDrawQuery(todayDay, false))
-    .all(todayTimestamp) as Ticket[];
+    .all(today) as Ticket[];
 
   return canDrawTickets.some((t) => t.id === ticketId);
 }
@@ -698,7 +748,7 @@ describe('End-to-end drawing behavior with 23.5 hour intervals', () => {
     MockDate.set('2025-05-12T08:00:00.000Z'); // Monday 8 AM
 
     const ticket = createNormalTicket(1);
-    const mondayTimestamp = getTodayTimestamp();
+    const mondayTimestamp = getTodayTimestampCT();
 
     // Create a completed draw on Monday 8 AM
     createTicketDraw(ticket.id, { done: true, date: mondayTimestamp });
@@ -727,7 +777,7 @@ describe('End-to-end drawing behavior with 23.5 hour intervals', () => {
     MockDate.set('2025-05-12T08:00:00.000Z'); // Monday 8 AM
 
     const ticket = createNormalTicket(1);
-    const mondayTimestamp = getTodayTimestamp();
+    const mondayTimestamp = getTodayTimestampCT();
 
     // Create a completed draw on Monday 8 AM
     createTicketDraw(ticket.id, { done: true, date: mondayTimestamp });
