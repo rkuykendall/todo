@@ -6,10 +6,7 @@ interface FrequencySelectorProps {
   onChange?: (value: number | undefined) => void;
 }
 
-export function FrequencySelector({
-  value = 1,
-  onChange,
-}: FrequencySelectorProps) {
+export function FrequencySelector({ value, onChange }: FrequencySelectorProps) {
   const [customFrequency, setCustomFrequency] = useState(
     value ? ![1, 7, 30, 365].includes(value) : false
   );
@@ -17,7 +14,7 @@ export function FrequencySelector({
   return (
     <Space direction="vertical" style={{ width: '100%' }}>
       <Radio.Group
-        value={customFrequency ? 'custom' : value}
+        value={customFrequency ? 'custom' : (value ?? 1)}
         onChange={(e) => {
           const selectedValue = e.target.value;
           setCustomFrequency(selectedValue === 'custom');
@@ -40,12 +37,17 @@ export function FrequencySelector({
           type="number"
           min={1}
           placeholder="Enter custom frequency in days"
-          value={value}
+          value={value ?? ''}
           onChange={(e) => {
-            const inputValue = e.target.value
-              ? Number(e.target.value)
-              : undefined;
-            onChange?.(inputValue);
+            const inputValue = e.target.value.trim();
+            if (inputValue === '') {
+              onChange?.(undefined);
+            } else {
+              const numValue = Number(inputValue);
+              if (!isNaN(numValue) && numValue > 0) {
+                onChange?.(numValue);
+              }
+            }
           }}
         />
       )}

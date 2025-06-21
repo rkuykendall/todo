@@ -149,7 +149,7 @@ function TicketForm({
       const submittedValues = {
         ...values,
         // If not recurring, ensure frequency is still a valid number (default to 1)
-        frequency: values.recurring ? Number(values.frequency) : 1,
+        frequency: values.recurring ? Number(values.frequency) || 1 : 1,
       };
 
       await onSubmit(submittedValues);
@@ -245,8 +245,23 @@ function TicketForm({
             label="Frequency"
             name="frequency"
             rules={[
-              { required: true, message: 'Please select or enter a frequency' },
-              { type: 'number', message: 'Frequency must be a number' },
+              {
+                required: true,
+                message: 'Please select or enter a frequency',
+                validator: (_, value) => {
+                  if (value === undefined || value === null || value === '') {
+                    return Promise.reject(
+                      new Error('Please select or enter a frequency')
+                    );
+                  }
+                  if (typeof value === 'number' && value > 0) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(
+                    new Error('Frequency must be a positive number')
+                  );
+                },
+              },
             ]}
           >
             <FrequencySelector />
