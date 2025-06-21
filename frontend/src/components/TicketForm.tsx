@@ -1,6 +1,6 @@
 import type { Ticket } from '@todo/shared';
 import { dayFields } from '@todo/shared';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Form,
   Input,
@@ -15,6 +15,58 @@ import type { InputRef } from 'antd';
 import type { NamePath } from 'antd/es/form/interface';
 import Button from './Button';
 import { FrequencySelector } from './FrequencySelector';
+
+// Type-safe utility functions for day field keys
+type DayFieldKey = (typeof dayFields)[number];
+type CanDrawKey = `can_draw_${DayFieldKey}`;
+type MustDrawKey = `must_draw_${DayFieldKey}`;
+
+const getCanDrawKey = (day: DayFieldKey): CanDrawKey => `can_draw_${day}`;
+const getMustDrawKey = (day: DayFieldKey): MustDrawKey => `must_draw_${day}`;
+
+// Generic utility function to get initial values with fallback to empty values
+const getInitialValueOrDefault = <K extends keyof FormValues>(
+  key: K,
+  initialValues: Partial<Ticket>,
+  emptyValues: FormValues
+): FormValues[K] => {
+  return (
+    (initialValues[key as keyof Ticket] as FormValues[K]) ?? emptyValues[key]
+  );
+};
+
+// Helper function to generate day field entries
+const generateDayFieldEntries = (
+  initialValues: Partial<Ticket>,
+  emptyValues: FormValues
+): Record<string, boolean> => {
+  return Object.fromEntries(
+    dayFields.flatMap((day) => {
+      const canDrawKey = getCanDrawKey(day);
+      const mustDrawKey = getMustDrawKey(day);
+      return [
+        [
+          canDrawKey,
+          getInitialValueOrDefault(canDrawKey, initialValues, emptyValues),
+        ],
+        [
+          mustDrawKey,
+          getInitialValueOrDefault(mustDrawKey, initialValues, emptyValues),
+        ],
+      ];
+    })
+  );
+};
+
+// Helper function to generate empty day field values
+const generateEmptyDayFieldValues = (): Record<string, boolean> => {
+  return Object.fromEntries(
+    dayFields.flatMap((day) => [
+      [getCanDrawKey(day), dayFields.slice(0, 5).includes(day)], // weekdays default to true
+      [getMustDrawKey(day), false], // must_draw defaults to false
+    ])
+  );
+};
 
 interface TicketFormProps {
   initialValues?: Partial<Ticket>;
@@ -37,15 +89,10 @@ const emptyValues: FormValues = {
   recurring: false,
   deadline: null,
   frequency: 1,
-  ...Object.fromEntries(
-    dayFields.flatMap((day) => [
-      [`can_draw_${day}`, dayFields.slice(0, 5).includes(day)],
-      [`must_draw_${day}`, false],
-    ])
-  ),
+  ...generateEmptyDayFieldValues(),
 } as FormValues;
 
-const toLabel = (day: string): string => {
+const toLabel = (day: DayFieldKey): string => {
   const firstLetter = day.charAt(0).toUpperCase();
   return `${firstLetter}${day.slice(1, 3)}`;
 };
@@ -64,25 +111,24 @@ function TicketForm({
   // Watch the "recurring" field value to conditionally render the frequency field
   const recurring = Form.useWatch('recurring', form);
 
+  const getInitialValue = useMemo(() => {
+    return <K extends keyof FormValues>(key: K): FormValues[K] => {
+      return getInitialValueOrDefault(key, initialValues, emptyValues);
+    };
+  }, [initialValues]);
+
+  const dayFieldEntries = useMemo(() => {
+    return generateDayFieldEntries(initialValues, emptyValues);
+  }, [initialValues]);
+
   useEffect(() => {
     if (open) {
       form.setFieldsValue({
-        title: initialValues.title ?? emptyValues.title,
-        recurring: initialValues.recurring ?? emptyValues.recurring,
-        deadline: initialValues.deadline || null,
-        frequency: initialValues.frequency ?? emptyValues.frequency,
-        ...Object.fromEntries(
-          dayFields.flatMap((day) => [
-            [
-              `can_draw_${day}`,
-              Boolean(initialValues[`can_draw_${day}` as keyof Ticket]),
-            ],
-            [
-              `must_draw_${day}`,
-              Boolean(initialValues[`must_draw_${day}` as keyof Ticket]),
-            ],
-          ])
-        ),
+        title: getInitialValue('title'),
+        recurring: getInitialValue('recurring'),
+        deadline: getInitialValue('deadline'),
+        frequency: getInitialValue('frequency'),
+        ...dayFieldEntries,
       });
 
       // Clear any previous errors when the form reopens
@@ -93,7 +139,7 @@ function TicketForm({
         titleInputRef.current?.focus();
       }, 100);
     }
-  }, [form, initialValues, open]);
+  }, [form, initialValues, open, getInitialValue, dayFieldEntries]);
 
   const handleSubmit = async (values: FormValues) => {
     try {
@@ -212,7 +258,7 @@ function TicketForm({
             {dayFields.map((day) => (
               <Form.Item
                 key={day}
-                name={`can_draw_${day}`}
+                name={getCanDrawKey(day)}
                 noStyle
                 valuePropName="checked"
               >
@@ -227,7 +273,7 @@ function TicketForm({
             {dayFields.map((day) => (
               <Form.Item
                 key={day}
-                name={`must_draw_${day}`}
+                name={getMustDrawKey(day)}
                 noStyle
                 valuePropName="checked"
               >
