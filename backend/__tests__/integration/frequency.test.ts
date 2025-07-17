@@ -745,15 +745,16 @@ describe('End-to-end drawing behavior with 23.5 hour intervals', () => {
   });
 
   test('frequency=1 ticket eligibility with fractional day differences', () => {
-    MockDate.set('2025-05-12T08:00:00.000Z'); // Monday 8 AM
+    // Set time to Monday 8 AM Central Time (which is 2 PM UTC)
+    MockDate.set('2025-05-12T14:00:00.000Z'); // Monday 8 AM Central = 2 PM UTC
 
     const ticket = createNormalTicket(1);
     const mondayTimestamp = getTodayTimestampCT();
 
-    // Create a completed draw on Monday 8 AM
+    // Create a completed draw on Monday 8 AM Central Time
     createTicketDraw(ticket.id, { done: true, date: mondayTimestamp });
 
-    // Test different time intervals
+    // Test different time intervals from Monday 8 AM Central Time
     const testTimes = [
       { label: '23h', hours: 23, expectedEligible: false },
       { label: '23.5h', hours: 23.5, expectedEligible: false },
@@ -762,7 +763,8 @@ describe('End-to-end drawing behavior with 23.5 hour intervals', () => {
     ];
 
     testTimes.forEach(({ hours, expectedEligible }) => {
-      const newTime = new Date('2025-05-12T08:00:00.000Z');
+      // Start from Monday 8 AM Central Time (2 PM UTC) and add hours
+      const newTime = new Date('2025-05-12T14:00:00.000Z');
       newTime.setHours(newTime.getHours() + hours);
       MockDate.set(newTime);
 
@@ -774,27 +776,28 @@ describe('End-to-end drawing behavior with 23.5 hour intervals', () => {
   });
 
   test('UNDERSTAND THE LOGIC: frequency=1 ticket completed Monday 8AM and Tuesday morning scheduling', () => {
-    MockDate.set('2025-05-12T08:00:00.000Z'); // Monday 8 AM
+    // Set time to Monday 8 AM Central Time (which is 2 PM UTC)
+    MockDate.set('2025-05-12T14:00:00.000Z'); // Monday 8 AM Central = 2 PM UTC
 
     const ticket = createNormalTicket(1);
     const mondayTimestamp = getTodayTimestampCT();
 
-    // Create a completed draw on Monday 8 AM
+    // Create a completed draw on Monday 8 AM Central Time
     createTicketDraw(ticket.id, { done: true, date: mondayTimestamp });
 
-    // Test specific Tuesday morning times
+    // Test specific Tuesday morning times (all in UTC, representing Central Time)
     const tuesdayTimes = [
       {
-        time: '2025-05-13T00:00:00.000Z',
-        label: 'Tuesday midnight (16 hours later)',
+        time: '2025-05-13T06:00:00.000Z', // Tuesday midnight Central = 6 AM UTC
+        label: 'Tuesday midnight Central (16 hours later)',
       },
       {
-        time: '2025-05-13T07:30:00.000Z',
-        label: 'Tuesday 7:30 AM (23.5 hours later)',
+        time: '2025-05-13T13:30:00.000Z', // Tuesday 7:30 AM Central = 1:30 PM UTC
+        label: 'Tuesday 7:30 AM Central (23.5 hours later)',
       },
       {
-        time: '2025-05-13T08:00:00.000Z',
-        label: 'Tuesday 8:00 AM (exactly 24 hours later)',
+        time: '2025-05-13T14:00:00.000Z', // Tuesday 8:00 AM Central = 2 PM UTC
+        label: 'Tuesday 8:00 AM Central (exactly 24 hours later)',
       },
     ];
 
@@ -804,8 +807,8 @@ describe('End-to-end drawing behavior with 23.5 hour intervals', () => {
       expect(eligible).toBe(false); // All should be ineligible (within frequency period)
     });
 
-    // Test Tuesday 9:00 AM (25 hours later) - should be eligible
-    MockDate.set('2025-05-13T09:00:00.000Z');
+    // Test Tuesday 9:00 AM Central (25 hours later) - should be eligible
+    MockDate.set('2025-05-13T15:00:00.000Z'); // Tuesday 9 AM Central = 3 PM UTC
     const laterEligible = isTicketEligible(ticket.id, 'tuesday');
     expect(laterEligible).toBe(true); // Should be eligible
 
@@ -1238,7 +1241,8 @@ describe('End-to-end draw count and frequency integration', () => {
   });
 
   test('edge case: exactly at frequency boundary with dynamic draw count', () => {
-    MockDate.set('2025-05-12T08:00:00.000Z'); // Monday 8 AM
+    // Set time to Monday 8 AM Central Time (which is 2 PM UTC)
+    MockDate.set('2025-05-12T14:00:00.000Z'); // Monday 8 AM Central = 2 PM UTC
 
     // Set up historical data for specific draw count
     const threeDaysAgo = new Date();
@@ -1276,14 +1280,16 @@ describe('End-to-end draw count and frequency integration', () => {
     });
 
     // Complete it exactly 2 days ago (at the frequency boundary)
-    MockDate.set('2025-05-10T08:00:00.000Z'); // Saturday 8 AM
+    // Saturday 8 AM Central = Saturday 2 PM UTC
+    MockDate.set('2025-05-10T14:00:00.000Z'); // Saturday 8 AM Central = 2 PM UTC
     createTicketDraw(biDailyTicket.id, {
       done: true,
-      date: getTodayTimestamp(),
+      date: getTodayTimestampCT(), // Use Central Time consistently
     });
 
     // Back to Monday - exactly 2 days (48 hours) later
-    MockDate.set('2025-05-12T08:00:00.000Z'); // Monday 8 AM
+    // Monday 8 AM Central = Monday 2 PM UTC
+    MockDate.set('2025-05-12T14:00:00.000Z'); // Monday 8 AM Central = 2 PM UTC
 
     // Create filler tickets
     for (let i = 0; i < 10; i++) {
@@ -1311,7 +1317,8 @@ describe('End-to-end draw count and frequency integration', () => {
     expect(eligible).toBe(false); // Should NOT be eligible (julianday diff = 2, frequency = 2, so 2 <= 2 is true)
 
     // Advance by 1 hour to exceed the boundary
-    MockDate.set('2025-05-12T09:00:00.000Z'); // Monday 9 AM
+    // Monday 9 AM Central = Monday 3 PM UTC
+    MockDate.set('2025-05-12T15:00:00.000Z'); // Monday 9 AM Central = 3 PM UTC
     const eligibleLater = isTicketEligible(biDailyTicket.id, 'monday');
     expect(eligibleLater).toBe(true); // Should be eligible now
 

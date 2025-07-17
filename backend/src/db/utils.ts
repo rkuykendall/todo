@@ -260,34 +260,44 @@ export function calculateDailyDrawCount(db: Database.Database): number {
 }
 
 /**
- * Get today's date in ISO format (YYYY-MM-DD) using Central Time
+ * Get today's timestamp in Central Time for database queries
+ * This ensures consistent timezone handling for frequency calculations
  */
 export function getTodayDate(): string {
   const now = new Date();
 
-  // For MockDate compatibility, we need to use a more direct approach
-  // Calculate Central Time by creating a date in Central timezone
+  // Convert to Central Time timestamp for proper julianday() comparison
   try {
-    // This should work with MockDate
     const formatter = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/Chicago',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
     });
 
-    return formatter.format(now); // This returns YYYY-MM-DD format
+    const parts = formatter.formatToParts(now);
+    const partsMap = Object.fromEntries(
+      parts.map((part) => [part.type, part.value])
+    );
+
+    return `${partsMap.year}-${partsMap.month}-${partsMap.day} ${partsMap.hour}:${partsMap.minute}:${partsMap.second}`;
   } catch {
-    // Fallback to UTC-based calculation with manual Central Time offset
-    // Central Time is typically UTC-6 (winter) or UTC-5 (summer)
+    // Fallback to manual Central Time calculation
     const centralOffset = now.getTimezoneOffset() + 6 * 60; // Assume CST (UTC-6)
     const centralTime = new Date(now.getTime() - centralOffset * 60000);
 
     const year = centralTime.getFullYear();
     const month = String(centralTime.getMonth() + 1).padStart(2, '0');
     const day = String(centralTime.getDate()).padStart(2, '0');
+    const hour = String(centralTime.getHours()).padStart(2, '0');
+    const minute = String(centralTime.getMinutes()).padStart(2, '0');
+    const second = String(centralTime.getSeconds()).padStart(2, '0');
 
-    return `${year}-${month}-${day}`;
+    return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
   }
 }
 
