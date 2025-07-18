@@ -20,6 +20,7 @@ import {
   Tag,
 } from 'antd';
 import { updateTicket } from '../ticketSlice';
+import { fetchDraws } from '../drawSlice';
 
 interface TicketCardProps {
   ticket: Ticket;
@@ -78,8 +79,10 @@ export const TicketCard = ({
   const isUpdateLoading = updateLoading[ticket.id];
   const isDeleteLoading = deleteLoading[ticket.id];
 
-  const toggleDone = () => {
-    dispatch(
+  const toggleDone = async () => {
+    const wasNotDone = !ticket.done;
+
+    const resultAction = await dispatch(
       updateTicket({
         id: ticket.id,
         updates: {
@@ -87,6 +90,11 @@ export const TicketCard = ({
         },
       })
     );
+
+    // If ticket was just marked as done (not undone), refresh the draws
+    if (wasNotDone && updateTicket.fulfilled.match(resultAction)) {
+      dispatch(fetchDraws());
+    }
   };
 
   return (

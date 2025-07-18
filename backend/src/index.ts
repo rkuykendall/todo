@@ -240,9 +240,45 @@ const updateTicket: AsyncRequestHandler = async (req, res, next) => {
       `UPDATE ticket SET ${setClause} WHERE id = ?`
     );
 
-    // Use transaction for the update
+    // Check if ticket is being marked as done and needs a ticket_draw
+    const isBeingMarkedDone = updates.done && !existing.done;
+    let needsTicketDraw = false;
+
+    if (isBeingMarkedDone) {
+      // Check if there's already a ticket_draw for today for this ticket
+      const today = getTodayDate();
+
+      const existingDraw = db
+        .prepare(
+          "SELECT * FROM ticket_draw WHERE ticket_id = ? AND DATE(datetime(created_at, 'localtime')) = DATE(?)"
+        )
+        .get(id, today);
+
+      needsTicketDraw = !existingDraw;
+    }
+
+    // Use transaction for the update and potential ticket_draw creation
     db.transaction(() => {
       updateStmt.run(...updateKeys.map((k) => updates[k]), id);
+
+      if (needsTicketDraw) {
+        // Create a completed ticket_draw for this ticket
+        const drawId = uuidv4();
+        const insertDraw = db.prepare(INSERT_TICKET_DRAW);
+        insertDraw.run(drawId, id);
+
+        // Mark the draw as completed
+        const updateDraw = db.prepare(
+          'UPDATE ticket_draw SET done = 1 WHERE id = ?'
+        );
+        updateDraw.run(drawId);
+
+        // Update last_drawn on the ticket
+        const updateLastDrawn = db.prepare(
+          "UPDATE ticket SET last_drawn = datetime('now', 'localtime') WHERE id = ?"
+        );
+        updateLastDrawn.run(id);
+      }
     })();
 
     const updated = db
@@ -281,12 +317,13 @@ export function getTodayDayString(): string {
 const getTicketDraw: AsyncRequestHandler = async (_req, res, next) => {
   try {
     const today = getTodayDate();
+    const todayDate = today.split(' ')[0]; // Extract just the date part (YYYY-MM-DD)
 
     const draws = db
       .prepare(
         "SELECT * FROM ticket_draw WHERE DATE(datetime(created_at, 'localtime')) = ?"
       )
-      .all(today) as RawDbDraw[];
+      .all(todayDate) as RawDbDraw[];
 
     res.json(draws.map(normalizeDraw));
   } catch (error) {
@@ -392,12 +429,13 @@ function createDrawsForTickets(
 const createTicketDraw: AsyncRequestHandler = async (_req, res, next) => {
   try {
     const today = getTodayDate();
+    const todayDate = today.split(' ')[0]; // Extract just the date part (YYYY-MM-DD)
     const todayDay = getTodayDayString();
 
     // Get existing draws
     const existingDraws = db
       .prepare(SELECT_TICKET_IDS_BY_DATE)
-      .all(today) as Array<{ ticket_id: string }>;
+      .all(todayDate) as Array<{ ticket_id: string }>;
     const existingTicketIds = new Set(existingDraws.map((d) => d.ticket_id));
 
     // Select and create new draws

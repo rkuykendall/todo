@@ -241,6 +241,9 @@ function App() {
                     if (createDraws.rejected.match(result)) {
                       const payload = result.payload as { error: string };
                       messageApi.warning(payload.error);
+                    } else {
+                      // Refresh draws after creating them
+                      dispatch(fetchDraws());
                     }
                   }}
                   type="primary"
