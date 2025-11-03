@@ -22,7 +22,6 @@ A personal task management system that helps organize daily tasks through a tick
 ## Tech Stack
 
 - **Frontend**:
-
   - React with TypeScript
   - Redux Toolkit for state management
   - Ant Design component library

@@ -131,15 +131,12 @@ function TicketForm({
         ...dayFieldEntries,
       });
 
-      // Clear any previous errors when the form reopens
-      setError(null);
-
       // Focus the title input when modal opens
       setTimeout(() => {
         titleInputRef.current?.focus();
       }, 100);
     }
-  }, [form, initialValues, open, getInitialValue, dayFieldEntries]);
+  }, [open, form, getInitialValue, dayFieldEntries]);
 
   const handleSubmit = async (values: FormValues) => {
     try {
@@ -207,6 +204,11 @@ function TicketForm({
       onCancel={onCancel}
       open={open}
       title={title}
+      afterOpenChange={(isOpen) => {
+        if (isOpen) {
+          setError(null);
+        }
+      }}
     >
       {error && (
         <Alert message="Error" description={error} type="error" showIcon />

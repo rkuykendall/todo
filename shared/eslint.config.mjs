@@ -39,11 +39,16 @@ const baseConfig = [
         { allowConstantExport: true },
       ],
       '@stylistic/jsx/jsx-self-closing-comp': 'error',
+      // Disable problematic rule due to bug in @typescript-eslint 8.46.2 + ESLint 9.39.0
+      // See: https://github.com/typescript-eslint/typescript-eslint/issues/11732
+      '@typescript-eslint/unified-signatures': 'off',
     },
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
-  ...tseslint.configs.strict,
+  // Temporarily exclude strict config due to unified-signatures bug in ESLint 9.39.0
+  // See: https://github.com/typescript-eslint/typescript-eslint/issues/11732
+  // ...tseslint.configs.strict,
 ];
 
 export default baseConfig;
