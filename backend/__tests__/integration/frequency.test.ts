@@ -52,11 +52,12 @@ import {
 } from '../../src/db/utils.ts';
 import { getMustDrawQuery, getCanDrawQuery } from '../../src/db/queries.ts';
 
-// Import shared functions from main application
-import { getTodayDayString } from '../../src/index.ts';
+// Import shared functions from service
+import { TicketService } from '../../src/services/TicketService.ts';
 
 // Create an in-memory database for testing with the same setup as the application
 let db: Database.Database;
+let ticketService: TicketService;
 
 /**
  * Get a timestamp in Central Time format that's compatible with the database
@@ -104,6 +105,7 @@ function getTodayTimestampCT(): string {
 beforeAll(() => {
   // Initialize test database with the same setup as the application
   db = createTestDatabase();
+  ticketService = new TicketService(db);
 });
 
 // Clean up after all tests
@@ -639,7 +641,7 @@ function performDraw(
   expectedTotalDrawCount: number,
   fixedCount?: number
 ): Ticket[] {
-  const todayDay = getTodayDayString();
+  const todayDay = ticketService.getTodayDayString();
 
   // Simulate the draw selection logic - use fixed count version if specified
   const selectedTickets = fixedCount

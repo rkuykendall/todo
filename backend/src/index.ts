@@ -4,23 +4,12 @@ import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
 import rateLimit from 'express-rate-limit';
 import db from './db/index.ts';
-import { dayFields } from '@todo/shared';
 import { NewTicketSchema, UpdateTicketSchema } from './types/ticket.ts';
-import { PatchTicketDrawSchema, type TicketDraw } from './types/ticket_draw.ts';
-import {
-  getMustDrawQuery,
-  getCanDrawQuery,
-  getDeadlineTicketsQuery,
-  getApproachingDeadlineQuery,
-} from './db/queries.ts';
-import {
-  type RawDbTicket,
-  type RawDbDraw,
-  normalizeTicket,
-  denormalizeTicket,
-  calculateDailyDrawCount,
-  getTodayDate,
-} from './db/utils.ts';
+import { PatchTicketDrawSchema } from './types/ticket_draw.ts';
+import { TicketService } from './services/TicketService.ts';
+
+// Initialize the ticket service with the database
+const ticketService = new TicketService(db);
 
 const app = express();
 app.use(cors());
@@ -127,19 +116,10 @@ type AsyncRequestHandler = (
   next: NextFunction
 ) => Promise<void>;
 
-function normalizeDraw(draw: RawDbDraw): TicketDraw {
-  return {
-    ...draw,
-    done: Boolean(draw.done),
-    skipped: Boolean(draw.skipped),
-  };
-}
-
 const getTickets: AsyncRequestHandler = async (_req, res, next) => {
   try {
-    const raw = db.prepare('SELECT * FROM ticket').all() as RawDbTicket[];
-    const normalized = raw.map(normalizeTicket);
-    res.json(normalized);
+    const tickets = ticketService.getAllTickets();
+    res.json(tickets);
   } catch (error) {
     next(error);
   }
@@ -147,14 +127,18 @@ const getTickets: AsyncRequestHandler = async (_req, res, next) => {
 
 const getTicketById: AsyncRequestHandler = async (req, res, next) => {
   try {
-    const ticket = db
-      .prepare('SELECT * FROM ticket WHERE id = ?')
-      .get(req.params.id) as RawDbTicket | undefined;
+    const { id } = req.params;
+    if (!id) {
+      res.status(400).json({ error: 'ID parameter is required' });
+      return;
+    }
+
+    const ticket = ticketService.getTicketById(id);
     if (!ticket) {
       res.status(404).json({ error: 'Ticket not found' });
       return;
     }
-    res.json(normalizeTicket(ticket));
+    res.json(ticket);
   } catch (error) {
     next(error);
   }
@@ -168,42 +152,7 @@ const createTicket: AsyncRequestHandler = async (req, res, next) => {
       return;
     }
 
-    const data = result.data;
-    const id = uuidv4();
-
-    const columns = [
-      'id',
-      'title',
-      'recurring',
-      'done',
-      'last_drawn',
-      'deadline',
-      'frequency',
-      ...dayFields.flatMap((day) => [`can_draw_${day}`, `must_draw_${day}`]),
-    ];
-
-    const values = [
-      id,
-      data.title,
-      Number(data.recurring ?? false),
-      data.done ?? null,
-      data.last_drawn ?? null,
-      data.deadline ?? null,
-      data.frequency ?? 1,
-      ...dayFields.flatMap((day) => [
-        Number(!!data[`can_draw_${day}` as keyof typeof data]),
-        Number(!!data[`must_draw_${day}` as keyof typeof data]),
-      ]),
-    ];
-
-    const placeholders = columns.map(() => '?').join(', ');
-    const statement = `INSERT INTO ticket (${columns.join(', ')}) VALUES (${placeholders})`;
-
-    // Use transaction for database write
-    db.transaction(() => {
-      db.prepare(statement).run(...values);
-    })();
-
+    const id = ticketService.createTicket(result.data);
     res.status(201).json({ id });
   } catch (error) {
     next(error);
@@ -213,11 +162,8 @@ const createTicket: AsyncRequestHandler = async (req, res, next) => {
 const updateTicket: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const existing = db.prepare('SELECT * FROM ticket WHERE id = ?').get(id) as
-      | RawDbTicket
-      | undefined;
-    if (!existing) {
-      res.status(404).json({ error: 'Ticket not found' });
+    if (!id) {
+      res.status(400).json({ error: 'ID parameter is required' });
       return;
     }
 
@@ -227,65 +173,21 @@ const updateTicket: AsyncRequestHandler = async (req, res, next) => {
       return;
     }
 
-    const updates = denormalizeTicket(result.data);
-
-    const updateKeys = Object.keys(updates);
-    if (updateKeys.length === 0) {
-      res.status(400).json({ error: 'No valid fields to update' });
+    const updated = ticketService.updateTicket(id, result.data);
+    if (!updated) {
+      res.status(404).json({ error: 'Ticket not found' });
       return;
     }
 
-    const setClause = updateKeys.map((key) => `${key} = ?`).join(', ');
-    const updateStmt = db.prepare(
-      `UPDATE ticket SET ${setClause} WHERE id = ?`
-    );
-
-    // Check if ticket is being marked as done and needs a ticket_draw
-    const isBeingMarkedDone = updates.done && !existing.done;
-    let needsTicketDraw = false;
-
-    if (isBeingMarkedDone) {
-      // Check if there's already a ticket_draw for today for this ticket
-      const today = getTodayDate();
-
-      const existingDraw = db
-        .prepare(
-          "SELECT * FROM ticket_draw WHERE ticket_id = ? AND DATE(datetime(created_at, 'localtime')) = DATE(?)"
-        )
-        .get(id, today);
-
-      needsTicketDraw = !existingDraw;
-    }
-
-    // Use transaction for the update and potential ticket_draw creation
-    db.transaction(() => {
-      updateStmt.run(...updateKeys.map((k) => updates[k]), id);
-
-      if (needsTicketDraw) {
-        // Create a completed ticket_draw for this ticket
-        const drawId = uuidv4();
-        const insertDraw = db.prepare(INSERT_TICKET_DRAW);
-        insertDraw.run(drawId, id);
-
-        // Mark the draw as completed
-        const updateDraw = db.prepare(
-          'UPDATE ticket_draw SET done = 1 WHERE id = ?'
-        );
-        updateDraw.run(drawId);
-
-        // Update last_drawn on the ticket
-        const updateLastDrawn = db.prepare(
-          "UPDATE ticket SET last_drawn = datetime('now', 'localtime') WHERE id = ?"
-        );
-        updateLastDrawn.run(id);
-      }
-    })();
-
-    const updated = db
-      .prepare('SELECT * FROM ticket WHERE id = ?')
-      .get(id) as RawDbTicket;
-    res.json(normalizeTicket(updated));
+    res.json(updated);
   } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === 'No valid fields to update'
+    ) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
     next(error);
   }
 };
@@ -293,8 +195,13 @@ const updateTicket: AsyncRequestHandler = async (req, res, next) => {
 const deleteTicket: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const result = db.prepare('DELETE FROM ticket WHERE id = ?').run(id);
-    if (result.changes === 0) {
+    if (!id) {
+      res.status(400).json({ error: 'ID parameter is required' });
+      return;
+    }
+
+    const deleted = ticketService.deleteTicket(id);
+    if (!deleted) {
       res.status(404).json({ error: 'Ticket not found' });
       return;
     }
@@ -304,167 +211,28 @@ const deleteTicket: AsyncRequestHandler = async (req, res, next) => {
   }
 };
 
-// Utility: Get today's lowercase day name (e.g., "wednesday")
-export function getTodayDayString(): string {
-  return new Date()
-    .toLocaleString('en-US', {
-      weekday: 'long',
-      timeZone: 'America/Chicago',
-    })
-    .toLowerCase();
-}
-
-const getTicketDraw: AsyncRequestHandler = async (_req, res, next) => {
-  try {
-    const today = getTodayDate();
-    const todayDate = today.split(' ')[0]; // Extract just the date part (YYYY-MM-DD)
-
-    const draws = db
-      .prepare(
-        "SELECT * FROM ticket_draw WHERE DATE(datetime(created_at, 'localtime')) = ?"
-      )
-      .all(todayDate) as RawDbDraw[];
-
-    res.json(draws.map(normalizeDraw));
-  } catch (error) {
-    next(error);
-  }
-  return;
-};
-
-// SQL query constants
-const SELECT_DRAWS_BY_DATE =
-  "SELECT * FROM ticket_draw WHERE DATE(datetime(created_at, 'localtime')) = ?";
-const SELECT_TICKET_IDS_BY_DATE =
-  "SELECT ticket_id FROM ticket_draw WHERE DATE(datetime(created_at, 'localtime')) = ?";
-const INSERT_TICKET_DRAW = `
-  INSERT INTO ticket_draw (id, created_at, ticket_id, done, skipped)
-  VALUES (?, datetime('now', 'localtime'), ?, 0, 0)
-`;
-
-interface TicketDrawResult {
-  addedDraws: number;
-  totalDraws: number;
-}
-
-export function selectTicketsForDraw(
-  todayDay: string,
-  existingTicketIds: Set<string>
-): RawDbTicket[] {
-  const today = getTodayDate();
-  const maxDrawCount = calculateDailyDrawCount(db);
-
-  // First, prioritize tickets with deadline today or in the past
-  const deadlineTickets = db
-    .prepare(getDeadlineTicketsQuery(todayDay))
-    .all(today) as RawDbTicket[];
-
-  // Second, get must-draw tickets, respecting frequency and done status
-  // Only respect frequency for tickets that were completed, not just drawn
-  const mustDrawTickets = db
-    .prepare(getMustDrawQuery(todayDay, true))
-    .all(today, today) as RawDbTicket[];
-
-  // Third, get approaching deadline tickets (within next 7 days)
-  const approachingDeadlineTickets = db
-    .prepare(getApproachingDeadlineQuery(todayDay))
-    .all(today, today, today) as RawDbTicket[];
-
-  // Finally, get eligible can-draw tickets without deadline constraints
-  const canDrawTickets = db
-    .prepare(getCanDrawQuery(todayDay, true))
-    .all(today, today) as RawDbTicket[];
-
-  // Filter out tickets that already have draws
-  // Start with highest priority tickets first
-  const selectedTickets: RawDbTicket[] = [];
-
-  // Add tickets in order of priority until we fill up the available spots
-  const addUniqueTickets = (tickets: RawDbTicket[]) => {
-    for (const ticket of tickets) {
-      if (
-        !existingTicketIds.has(ticket.id) &&
-        selectedTickets.length + existingTicketIds.size < maxDrawCount
-      ) {
-        selectedTickets.push(ticket);
-      }
-    }
-  };
-
-  // Add tickets in prioritized order
-  addUniqueTickets(deadlineTickets);
-  addUniqueTickets(mustDrawTickets);
-  addUniqueTickets(approachingDeadlineTickets);
-  addUniqueTickets(canDrawTickets);
-
-  return selectedTickets;
-}
-
-function createDrawsForTickets(
-  tickets: RawDbTicket[],
-  existingTicketIds: Set<string>
-): TicketDrawResult {
-  const insertDraw = db.prepare(INSERT_TICKET_DRAW);
-  const updateLastDrawn = db.prepare(
-    "UPDATE ticket SET last_drawn = datetime('now', 'localtime') WHERE id = ?"
-  );
-  let addedDraws = 0;
-
-  for (const ticket of tickets) {
-    if (!existingTicketIds.has(ticket.id)) {
-      const id = uuidv4();
-      insertDraw.run(id, ticket.id);
-      updateLastDrawn.run(ticket.id);
-      existingTicketIds.add(ticket.id);
-      addedDraws++;
-    }
-  }
-
-  return {
-    addedDraws,
-    totalDraws: existingTicketIds.size,
-  };
-}
-
 const createTicketDraw: AsyncRequestHandler = async (_req, res, next) => {
   try {
-    const today = getTodayDate();
-    const todayDate = today.split(' ')[0]; // Extract just the date part (YYYY-MM-DD)
-    const todayDay = getTodayDayString();
-
-    // Get existing draws
-    const existingDraws = db
-      .prepare(SELECT_TICKET_IDS_BY_DATE)
-      .all(todayDate) as Array<{ ticket_id: string }>;
-    const existingTicketIds = new Set(existingDraws.map((d) => d.ticket_id));
-
-    // Select and create new draws
-    const selectedTickets = selectTicketsForDraw(todayDay, existingTicketIds);
-
-    // Use transaction for multiple database operations
-    let result: TicketDrawResult = {
-      addedDraws: 0,
-      totalDraws: existingTicketIds.size,
-    };
-
-    db.transaction(() => {
-      result = createDrawsForTickets(selectedTickets, existingTicketIds);
-    })();
-
-    if (result.addedDraws === 0 && result.totalDraws < 5) {
+    const draws = ticketService.createTicketDraws();
+    res.status(201).json(draws);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes('Not enough eligible tickets')
+    ) {
       res.status(400).json({
-        error: 'Not enough eligible tickets available for today',
-        currentDraws: result.totalDraws,
+        error: error.message,
       });
       return;
     }
+    next(error);
+  }
+};
 
-    // Get all draws for today, including newly created ones
-    const todaysDraws = db
-      .prepare(SELECT_DRAWS_BY_DATE)
-      .all(today) as RawDbDraw[];
-
-    res.status(201).json(todaysDraws.map(normalizeDraw));
+const getTicketDraw: AsyncRequestHandler = async (_req, res, next) => {
+  try {
+    const draws = ticketService.getTodaysTicketDraws();
+    res.json(draws);
   } catch (error) {
     next(error);
   }
@@ -473,6 +241,10 @@ const createTicketDraw: AsyncRequestHandler = async (_req, res, next) => {
 const updateTicketDraw: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { id } = req.params;
+    if (!id) {
+      res.status(400).json({ error: 'ID parameter is required' });
+      return;
+    }
 
     const parse = PatchTicketDrawSchema.safeParse(req.body);
     if (!parse.success) {
@@ -486,47 +258,13 @@ const updateTicketDraw: AsyncRequestHandler = async (req, res, next) => {
       return;
     }
 
-    const existing = db
-      .prepare('SELECT * FROM ticket_draw WHERE id = ?')
-      .get(id) as RawDbDraw | undefined;
-    if (!existing) {
+    const updated = ticketService.updateTicketDraw(id, updates);
+    if (!updated) {
       res.status(404).json({ error: 'ticket_draw not found.' });
       return;
     }
 
-    const setClause = Object.keys(updates)
-      .map((key) => `${key} = ?`)
-      .join(', ');
-    const updateStmt = db.prepare(
-      `UPDATE ticket_draw SET ${setClause} WHERE id = ?`
-    );
-    const coercedValues = Object.values(updates).map((val) =>
-      typeof val === 'boolean' ? Number(val) : val
-    );
-
-    // Use transaction for the update
-    db.transaction(() => {
-      updateStmt.run(...coercedValues, id);
-
-      // Only mark the parent ticket as done if the draw is marked as done (not skipped)
-      if (updates.done === true) {
-        const ticket = db
-          .prepare('SELECT * FROM ticket WHERE id = ?')
-          .get(existing.ticket_id) as RawDbTicket;
-
-        // If the ticket is NOT recurring, mark it as done when its draw is marked as done
-        if (!ticket.recurring) {
-          db.prepare(
-            "UPDATE ticket SET done = datetime('now', 'localtime') WHERE id = ?"
-          ).run(existing.ticket_id);
-        }
-      }
-    })();
-
-    const updated = db
-      .prepare('SELECT * FROM ticket_draw WHERE id = ?')
-      .get(id) as RawDbDraw;
-    res.json(normalizeDraw(updated));
+    res.json(updated);
   } catch (error) {
     next(error);
   }
@@ -534,8 +272,8 @@ const updateTicketDraw: AsyncRequestHandler = async (req, res, next) => {
 
 const deleteAllDraws: AsyncRequestHandler = async (_req, res, next) => {
   try {
-    const result = db.prepare('DELETE FROM ticket_draw').run();
-    res.json({ deleted: true, count: result.changes });
+    const count = ticketService.deleteAllTicketDraws();
+    res.json({ deleted: true, count });
   } catch (error) {
     next(error);
   }
@@ -544,9 +282,8 @@ const deleteAllDraws: AsyncRequestHandler = async (_req, res, next) => {
 // Health check endpoint that verifies database connectivity
 app.get('/health', async (_req, res) => {
   try {
-    // Simple query to check database connectivity
-    db.prepare('SELECT 1').get();
-    res.json({ status: 'ok', database: 'connected' });
+    const healthStatus = ticketService.checkDatabaseHealth();
+    res.json(healthStatus);
   } catch (error) {
     console.error('Health check failed:', error);
     res.status(500).json({
