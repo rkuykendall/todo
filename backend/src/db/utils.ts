@@ -211,10 +211,13 @@ export function denormalizeTicket(
  * Calculate daily draw count based on completion rate in past week
  * Returns a value between 5-10: 5 if few tickets completed, 10 if many completed
  */
-export function calculateDailyDrawCount(db: Database.Database): number {
-  // Get one-week-ago date
-  const today = new Date();
-  const oneWeekAgo = new Date();
+export function calculateDailyDrawCount(
+  db: Database.Database,
+  currentDate?: Date
+): number {
+  // Get one-week-ago date - use provided date or current date
+  const today = currentDate || new Date();
+  const oneWeekAgo = new Date(today);
   oneWeekAgo.setDate(today.getDate() - 7);
 
   const todayISO = formatDateISO(today);

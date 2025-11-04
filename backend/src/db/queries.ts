@@ -3,6 +3,9 @@
  *
  * Shared database query functions that can be used by both the main application
  * and test suites to ensure consistency in query logic.
+ *
+ * All queries use explicit timestamp parameters instead of SQLite's datetime('now')
+ * functions, making them fully testable with TimeProvider dependency injection.
  */
 
 /**
@@ -16,7 +19,7 @@
  *
  * @param todayDay - The day of the week (e.g., "monday", "tuesday")
  * @param includeDeadlineFilter - Whether to exclude tickets with deadlines today or in the past
- * @returns SQL query string
+ * @returns SQL query string with two parameters: currentTimestamp, currentTimestamp
  */
 export function getMustDrawQuery(
   todayDay: string,
@@ -53,7 +56,7 @@ export function getMustDrawQuery(
  *
  * @param todayDay - The day of the week (e.g., "monday", "tuesday")
  * @param includeDeadlineFilter - Whether to exclude tickets with deadlines within 7 days
- * @returns SQL query string
+ * @returns SQL query string with two parameters: currentTimestamp, currentTimestamp
  */
 export function getCanDrawQuery(
   todayDay: string,
@@ -89,7 +92,7 @@ export function getCanDrawQuery(
  * Get tickets with deadlines today or in the past
  *
  * @param todayDay - The day of the week (e.g., "monday", "tuesday")
- * @returns SQL query string
+ * @returns SQL query string with one parameter: currentTimestamp
  */
 export function getDeadlineTicketsQuery(todayDay: string): string {
   return `
@@ -106,7 +109,7 @@ export function getDeadlineTicketsQuery(todayDay: string): string {
  * Get tickets with approaching deadlines (within next 7 days)
  *
  * @param todayDay - The day of the week (e.g., "monday", "tuesday")
- * @returns SQL query string
+ * @returns SQL query string with three parameters: currentTimestamp, currentTimestamp, currentTimestamp
  */
 export function getApproachingDeadlineQuery(todayDay: string): string {
   return `
