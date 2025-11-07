@@ -62,3 +62,9 @@ export function formatDateISO(date: unknown): string {
     return now;
   }
 }
+
+// Re-export validation schemas and functions
+export * from './validation.js';
+
+// Re-export enhanced types
+export * from './types.js';

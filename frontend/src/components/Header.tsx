@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import useBreakpoint from 'antd/es/grid/hooks/useBreakpoint';
 import Space from './Space';
+import styles from './Header.module.css';
 
 interface HeaderProps {
   title: ReactNode;
@@ -10,15 +11,16 @@ interface HeaderProps {
 export function Header({ title, actions }: HeaderProps) {
   const screens = useBreakpoint();
 
+  const headerClasses = [
+    styles.headerContainer,
+    screens.sm ? styles.horizontal : styles.vertical,
+  ].join(' ');
+
   return (
     <Space
       direction={screens.sm ? 'horizontal' : 'vertical'}
       block
-      style={{
-        display: 'flex',
-        justifyContent: screens.sm ? 'space-between' : undefined,
-        alignItems: screens.sm ? 'center' : undefined,
-      }}
+      className={headerClasses}
     >
       {title}
       {actions}

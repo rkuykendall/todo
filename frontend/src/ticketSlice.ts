@@ -1,7 +1,8 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import type { Ticket } from '@todo/shared';
-import { API_DOMAIN } from './utils';
+import type { Ticket, NewTicketInput, UpdateTicketInput } from '@todo/shared';
+import { ticketApi } from './api/services';
+import { ApiRequestError } from './api/client';
 
 // Define error payload type
 interface ErrorPayload {
@@ -30,68 +31,41 @@ const initialState: TicketState = {
 export const fetchTickets = createAsyncThunk(
   'tickets/fetchTickets',
   async () => {
-    const res = await fetch(`${API_DOMAIN}/tickets`);
-    return res.json();
+    return await ticketApi.getAll();
   }
 );
 
 // Add a new ticket
 export const addTicket = createAsyncThunk<
   Ticket,
-  Partial<Ticket>,
+  NewTicketInput,
   { rejectValue: ErrorPayload }
 >('tickets/addTicket', async (data, { rejectWithValue }) => {
   try {
-    const res = await fetch(`${API_DOMAIN}/tickets`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-
-    const result = await res.json();
-
-    if (!res.ok) {
-      return rejectWithValue(result);
-    }
+    const result = await ticketApi.create(data);
 
     // Fetch the complete ticket data
-    const ticketRes = await fetch(`${API_DOMAIN}/tickets/${result.id}`);
-    if (!ticketRes.ok) {
-      const errorData = await ticketRes.json();
-      return rejectWithValue(errorData);
+    const ticket = await ticketApi.getById(result.id);
+    return ticket;
+  } catch (error) {
+    if (error instanceof ApiRequestError) {
+      return rejectWithValue(error.data);
     }
-
-    return await ticketRes.json();
-  } catch {
     return rejectWithValue({ error: 'Failed to add ticket' });
   }
 });
 
 export const updateTicket = createAsyncThunk<
   Ticket,
-  { id: string; updates: Partial<Ticket> },
+  { id: string; updates: UpdateTicketInput },
   { rejectValue: ErrorPayload }
 >('tickets/updateTicket', async ({ id, updates }, { rejectWithValue }) => {
   try {
-    const res = await fetch(`${API_DOMAIN}/tickets/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    });
-
-    if (!res.ok) {
-      const errorData = await res.json();
-      return rejectWithValue(errorData);
+    return await ticketApi.update(id, updates);
+  } catch (error) {
+    if (error instanceof ApiRequestError) {
+      return rejectWithValue(error.data);
     }
-
-    const updated = await fetch(`${API_DOMAIN}/tickets/${id}`);
-    if (!updated.ok) {
-      const errorData = await updated.json();
-      return rejectWithValue(errorData);
-    }
-
-    return await updated.json();
-  } catch {
     return rejectWithValue({ error: 'Failed to update ticket' });
   }
 });
@@ -100,7 +74,7 @@ export const updateTicket = createAsyncThunk<
 export const deleteTicket = createAsyncThunk(
   'tickets/deleteTicket',
   async (id: string) => {
-    await fetch(`${API_DOMAIN}/tickets/${id}`, { method: 'DELETE' });
+    await ticketApi.delete(id);
     return id;
   }
 );

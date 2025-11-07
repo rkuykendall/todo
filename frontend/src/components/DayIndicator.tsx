@@ -53,7 +53,7 @@ export function DayIndicator({ ticket }: DayIndicatorProps) {
 
   return (
     <Tooltip title={description} placement="top">
-      <Space size={6}>
+      <Space size={7}>
         {dayFields.map((day, idx) => {
           const canDrawDay = ticket[`can_draw_${day}` as keyof typeof ticket];
           const mustDrawDay = ticket[`must_draw_${day}` as keyof typeof ticket];

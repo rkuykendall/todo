@@ -1,0 +1,20 @@
+.loginContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 1rem;
+}
+
+.loginCard {
+  width: 300px;
+}
+
+.loginTitle {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.loginError {
+  margin-bottom: 1rem;
+}

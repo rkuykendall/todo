@@ -33,8 +33,9 @@ import Space from './components/Space';
 import { TicketCard, SimpleTicketList } from './components/Ticket';
 import { DrawCard } from './components/Draw';
 import Login from './components/Login';
-import { API_DOMAIN } from './utils';
+import { apiClient } from './api/client';
 import Header from './components/Header';
+import ErrorBoundary from './components/ErrorBoundary';
 
 type TicketFilter = 'tasks' | 'recurring' | 'done';
 
@@ -80,21 +81,18 @@ function App() {
   const handleLogin = async (password: string) => {
     setLoginError(undefined);
     try {
-      // Test the password by making a request
-      const response = await fetch(`${API_DOMAIN}/tickets`, {
-        headers: {
-          Authorization: `Bearer ${password}`,
-        },
-      });
+      // Set the token temporarily to test it
+      apiClient.setAuthToken(password);
 
-      if (!response.ok) {
-        throw new Error('Invalid password');
-      }
+      // Test the password by making a request
+      await apiClient.get('/tickets');
 
       // If we get here, the password worked
       localStorage.setItem(TOKEN_KEY, password);
       setToken(password);
     } catch (error) {
+      // Clear the failed token
+      apiClient.setAuthToken(null);
       setLoginError('Invalid password');
       throw error;
     }
@@ -105,30 +103,10 @@ function App() {
     setToken(null);
   };
 
-  // Setup authorization header for all API requests
+  // Setup API client with auth token and unauthorized handler
   useEffect(() => {
-    const originalFetch = window.fetch;
-    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-      if (typeof input === 'string' && input.includes(API_DOMAIN)) {
-        const headers = new Headers(init?.headers || {});
-        if (token) {
-          headers.set('Authorization', `Bearer ${token}`);
-        }
-        init = {
-          ...init,
-          headers,
-        };
-      }
-      const response = await originalFetch(input, init);
-      if (response.status === 401) {
-        handleLogout();
-      }
-      return response;
-    };
-
-    return () => {
-      window.fetch = originalFetch;
-    };
+    apiClient.setAuthToken(token);
+    apiClient.setUnauthorizedHandler(handleLogout);
   }, [token]);
 
   // Load initial data when logged in
@@ -183,239 +161,248 @@ function App() {
   };
 
   return (
-    <ConfigProvider
-      theme={{
-        token: {
-          colorPrimary: '#4fa4f7',
-          colorSuccess: '#53c66e',
-          colorError: '#f05252',
-          colorWarning: '#f6c542',
-        },
-        components: {
-          Button: {
-            borderRadius: 6,
-            controlHeight: !screens.sm ? 40 : 32,
-            fontSize: !screens.sm ? 16 : 14,
-            paddingInline: !screens.sm ? 16 : 15,
+    <ErrorBoundary>
+      <ConfigProvider
+        theme={{
+          token: {
+            colorPrimary: '#4fa4f7',
+            colorSuccess: '#53c66e',
+            colorError: '#f05252',
+            colorWarning: '#f6c542',
           },
-        },
-      }}
-    >
-      {contextHolder}
-      <div
-        style={{
-          maxWidth: 1064,
-          margin: '0 auto',
-          padding: '1rem',
-          width: '100%',
+          components: {
+            Button: {
+              borderRadius: 6,
+              controlHeight: !screens.sm ? 40 : 32,
+              fontSize: !screens.sm ? 16 : 14,
+              paddingInline: !screens.sm ? 16 : 15,
+            },
+            Card: {
+              paddingLG: 20,
+            },
+          },
         }}
       >
-        <Space direction="vertical" size="large" block>
-          <Header
-            title={
-              <Typography.Title level={1} style={{ margin: 0 }}>
-                Today's Draws
-              </Typography.Title>
-            }
-            actions={
-              <Space desktop block={!screens.sm}>
-                <Popconfirm
-                  title="Are you sure you want to clear all draws?"
-                  onConfirm={() => dispatch(clearDraws())}
-                  okText="Yes"
-                  cancelText="No"
-                >
-                  {/* <Button block={!screens.sm} type="text" danger>
+        {contextHolder}
+        <div
+          style={{
+            maxWidth: 1064,
+            margin: '0 auto',
+            padding: '1rem',
+            width: '100%',
+          }}
+        >
+          <Space direction="vertical" size="large" block>
+            <Header
+              title={
+                <Typography.Title level={1} style={{ margin: 0 }}>
+                  Today's Draws
+                </Typography.Title>
+              }
+              actions={
+                <Space desktop block={!screens.sm}>
+                  <Popconfirm
+                    title="Are you sure you want to clear all draws?"
+                    onConfirm={() => dispatch(clearDraws())}
+                    okText="Yes"
+                    cancelText="No"
+                  >
+                    {/* <Button block={!screens.sm} type="text" danger>
                     Clear Draws
                   </Button> */}
-                </Popconfirm>
-                <Button block={!screens.sm} onClick={handleLogout} type="text">
-                  Logout
-                </Button>
-                <Button
-                  block={!screens.sm}
-                  icon={<SyncOutlined spin={createLoading} />}
-                  loading={createLoading || loadingDraws || loadingTickets}
-                  onClick={async () => {
-                    const result = await dispatch(createDraws());
-                    if (createDraws.rejected.match(result)) {
-                      const payload = result.payload as { error: string };
-                      messageApi.warning(payload.error);
-                    } else {
-                      // Refresh draws after creating them
-                      dispatch(fetchDraws());
-                    }
-                  }}
-                  type="primary"
-                  disabled={draws.length >= 5}
-                >
-                  Draw Tickets for Today
-                </Button>
-                <Button
-                  block={!screens.sm}
-                  icon={<PlusOutlined />}
-                  loading={addLoading}
-                  onClick={() => setIsAddModalOpen(true)}
-                  type="primary"
-                >
-                  Add Ticket
-                </Button>
-              </Space>
-            }
-          />
-
-          {drawError && (
-            <Alert
-              message="Error"
-              description={drawError}
-              type="error"
-              showIcon
+                  </Popconfirm>
+                  <Button
+                    block={!screens.sm}
+                    onClick={handleLogout}
+                    type="text"
+                  >
+                    Logout
+                  </Button>
+                  <Button
+                    block={!screens.sm}
+                    icon={<SyncOutlined spin={createLoading} />}
+                    loading={createLoading || loadingDraws || loadingTickets}
+                    onClick={async () => {
+                      const result = await dispatch(createDraws());
+                      if (createDraws.rejected.match(result)) {
+                        const payload = result.payload as { error: string };
+                        messageApi.warning(payload.error);
+                      } else {
+                        // Refresh draws after creating them
+                        dispatch(fetchDraws());
+                      }
+                    }}
+                    type="primary"
+                    disabled={draws.length >= 5}
+                  >
+                    Draw Tickets for Today
+                  </Button>
+                  <Button
+                    block={!screens.sm}
+                    icon={<PlusOutlined />}
+                    loading={addLoading}
+                    onClick={() => setIsAddModalOpen(true)}
+                    type="primary"
+                  >
+                    Add Ticket
+                  </Button>
+                </Space>
+              }
             />
-          )}
 
-          <LoadingWrapper loading={loadingDraws}>
-            {!loadingDraws && draws.length === 0 ? (
+            {drawError && (
               <Alert
-                message="No draws available"
-                description="There are no tickets drawn for today. Click 'Draw Tickets for Today' to get started."
-                type="info"
+                message="Error"
+                description={drawError}
+                type="error"
                 showIcon
               />
-            ) : (
-              <Space
-                wrap={screens.sm}
-                direction={screens.sm ? 'horizontal' : 'vertical'}
-                block={!screens.sm}
-                desktop
-              >
-                {sortedDraws.map((draw, index) => (
-                  <DrawCard
-                    draw={draw}
-                    key={draw.id}
-                    index={index}
-                    onMarkDone={markDone}
-                    onMarkSkipped={markSkipped}
-                    onUndo={undoDraw}
-                    ticket={tickets.find((t) => t.id === draw.ticket_id)}
-                  />
-                ))}
-              </Space>
             )}
-          </LoadingWrapper>
 
-          <Header
-            title={
-              <Typography.Title level={2} style={{ margin: 0 }}>
-                All Tickets
-              </Typography.Title>
-            }
-            actions={
-              <AntSpace>
-                <Radio.Group
-                  value={ticketFilter}
-                  onChange={(e) => setTicketFilter(e.target.value)}
-                  optionType="button"
-                  buttonStyle="solid"
-                >
-                  <Radio.Button value="tasks">Tasks</Radio.Button>
-                  <Radio.Button value="recurring">Recurring</Radio.Button>
-                  <Radio.Button value="done">Done</Radio.Button>
-                </Radio.Group>
-                <Switch
-                  checkedChildren={<UnorderedListOutlined />}
-                  unCheckedChildren={<AppstoreOutlined />}
-                  checked={isListView}
-                  onChange={setIsListView}
+            <LoadingWrapper loading={loadingDraws}>
+              {!loadingDraws && draws.length === 0 ? (
+                <Alert
+                  message="No draws available"
+                  description="There are no tickets drawn for today. Click 'Draw Tickets for Today' to get started."
+                  type="info"
+                  showIcon
                 />
-              </AntSpace>
-            }
-          />
+              ) : (
+                <Space
+                  wrap={screens.sm}
+                  direction={screens.sm ? 'horizontal' : 'vertical'}
+                  block={!screens.sm}
+                  desktop
+                >
+                  {sortedDraws.map((draw, index) => (
+                    <DrawCard
+                      draw={draw}
+                      key={draw.id}
+                      index={index}
+                      onMarkDone={markDone}
+                      onMarkSkipped={markSkipped}
+                      onUndo={undoDraw}
+                      ticket={tickets.find((t) => t.id === draw.ticket_id)}
+                    />
+                  ))}
+                </Space>
+              )}
+            </LoadingWrapper>
 
-          {ticketError && (
-            <Alert
-              message="Error"
-              description={ticketError}
-              type="error"
-              showIcon
+            <Header
+              title={
+                <Typography.Title level={2} style={{ margin: 0 }}>
+                  All Tickets
+                </Typography.Title>
+              }
+              actions={
+                <AntSpace>
+                  <Radio.Group
+                    value={ticketFilter}
+                    onChange={(e) => setTicketFilter(e.target.value)}
+                    optionType="button"
+                    buttonStyle="solid"
+                  >
+                    <Radio.Button value="tasks">Tasks</Radio.Button>
+                    <Radio.Button value="recurring">Recurring</Radio.Button>
+                    <Radio.Button value="done">Done</Radio.Button>
+                  </Radio.Group>
+                  <Switch
+                    checkedChildren={<UnorderedListOutlined />}
+                    unCheckedChildren={<AppstoreOutlined />}
+                    checked={isListView}
+                    onChange={setIsListView}
+                  />
+                </AntSpace>
+              }
             />
-          )}
 
-          <LoadingWrapper loading={loadingTickets}>
-            {!loadingTickets && filteredTickets.length === 0 ? (
+            {ticketError && (
               <Alert
-                message={
-                  ticketFilter === 'done'
-                    ? 'No completed tickets'
-                    : ticketFilter === 'tasks'
-                      ? 'No active tasks'
-                      : 'No recurring tickets'
-                }
-                description={undefined}
-                type="info"
+                message="Error"
+                description={ticketError}
+                type="error"
                 showIcon
               />
-            ) : isListView ? (
-              <SimpleTicketList tickets={filteredTickets} />
-            ) : (
-              <Space
-                wrap={screens.sm}
-                direction={screens.sm ? 'horizontal' : 'vertical'}
-                style={{ width: '100%' }}
-              >
-                {filteredTickets.map((ticket, index) => (
-                  <TicketCard
-                    key={ticket.id}
-                    index={index}
-                    onDelete={(id: string) => dispatch(deleteTicket(id))}
-                    onEdit={setEditingTicket}
-                    ticket={ticket}
-                  />
-                ))}
-              </Space>
             )}
-          </LoadingWrapper>
 
-          <TicketForm
-            onCancel={() => setIsAddModalOpen(false)}
-            onSubmit={(ticket) => {
-              dispatch(addTicket(ticket))
-                .unwrap()
-                .then(() => {
-                  setIsAddModalOpen(false);
-                  messageApi.success('Ticket added successfully');
-                })
-                .catch((error) => {
-                  // The error will be handled by the TicketForm component
-                  throw error;
-                });
-            }}
-            open={isAddModalOpen}
-            title="Add New Ticket"
-          />
+            <LoadingWrapper loading={loadingTickets}>
+              {!loadingTickets && filteredTickets.length === 0 ? (
+                <Alert
+                  message={
+                    ticketFilter === 'done'
+                      ? 'No completed tickets'
+                      : ticketFilter === 'tasks'
+                        ? 'No active tasks'
+                        : 'No recurring tickets'
+                  }
+                  description={undefined}
+                  type="info"
+                  showIcon
+                />
+              ) : isListView ? (
+                <SimpleTicketList tickets={filteredTickets} />
+              ) : (
+                <Space
+                  wrap={screens.sm}
+                  direction={screens.sm ? 'horizontal' : 'vertical'}
+                  block
+                >
+                  {filteredTickets.map((ticket, index) => (
+                    <TicketCard
+                      key={ticket.id}
+                      index={index}
+                      onDelete={(id: string) => dispatch(deleteTicket(id))}
+                      onEdit={setEditingTicket}
+                      ticket={ticket}
+                    />
+                  ))}
+                </Space>
+              )}
+            </LoadingWrapper>
 
-          <TicketForm
-            initialValues={editingTicket || undefined}
-            onCancel={() => setEditingTicket(null)}
-            onSubmit={(updates) => {
-              if (editingTicket) {
-                dispatch(updateTicket({ id: editingTicket.id, updates }))
+            <TicketForm
+              onCancel={() => setIsAddModalOpen(false)}
+              onSubmit={(ticket) => {
+                dispatch(addTicket(ticket))
                   .unwrap()
                   .then(() => {
-                    setEditingTicket(null);
-                    messageApi.success('Ticket updated successfully');
+                    setIsAddModalOpen(false);
+                    messageApi.success('Ticket added successfully');
                   })
                   .catch((error) => {
                     // The error will be handled by the TicketForm component
                     throw error;
                   });
-              }
-            }}
-            open={!!editingTicket}
-            title="Edit Ticket"
-          />
-        </Space>
-      </div>
-    </ConfigProvider>
+              }}
+              open={isAddModalOpen}
+              title="Add New Ticket"
+            />
+
+            <TicketForm
+              initialValues={editingTicket || undefined}
+              onCancel={() => setEditingTicket(null)}
+              onSubmit={(updates) => {
+                if (editingTicket) {
+                  dispatch(updateTicket({ id: editingTicket.id, updates }))
+                    .unwrap()
+                    .then(() => {
+                      setEditingTicket(null);
+                      messageApi.success('Ticket updated successfully');
+                    })
+                    .catch((error) => {
+                      // The error will be handled by the TicketForm component
+                      throw error;
+                    });
+                }
+              }}
+              open={!!editingTicket}
+              title="Edit Ticket"
+            />
+          </Space>
+        </div>
+      </ConfigProvider>
+    </ErrorBoundary>
   );
 }
 

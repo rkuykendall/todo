@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
-import { NewTicketSchema, UpdateTicketSchema } from '../types/ticket.ts';
+import { NewTicketSchema, UpdateTicketSchema } from '@todo/shared';
 import type { TicketService } from '../services/TicketService.ts';
+import { ValidationError, NotFoundError } from '../middleware/validation.ts';
 
 type AsyncRequestHandler = (
   req: Request,
@@ -28,14 +29,12 @@ export class TicketController {
     try {
       const { id } = req.params;
       if (!id) {
-        res.status(400).json({ error: 'ID parameter is required' });
-        return;
+        throw new ValidationError('ID parameter is required');
       }
 
       const ticket = this.ticketService.getTicketById(id);
       if (!ticket) {
-        res.status(404).json({ error: 'Ticket not found' });
-        return;
+        throw new NotFoundError('Ticket not found');
       }
       res.json(ticket);
     } catch (error) {
@@ -47,8 +46,10 @@ export class TicketController {
     try {
       const result = NewTicketSchema.safeParse(req.body);
       if (!result.success) {
-        res.status(400).json({ error: result.error.flatten() });
-        return;
+        throw new ValidationError(
+          'Invalid ticket data',
+          result.error.flatten()
+        );
       }
 
       const id = this.ticketService.createTicket(result.data);
@@ -62,20 +63,20 @@ export class TicketController {
     try {
       const { id } = req.params;
       if (!id) {
-        res.status(400).json({ error: 'ID parameter is required' });
-        return;
+        throw new ValidationError('ID parameter is required');
       }
 
       const result = UpdateTicketSchema.safeParse(req.body);
       if (!result.success) {
-        res.status(400).json({ error: result.error.flatten() });
-        return;
+        throw new ValidationError(
+          'Invalid ticket data',
+          result.error.flatten()
+        );
       }
 
       const updated = this.ticketService.updateTicket(id, result.data);
       if (!updated) {
-        res.status(404).json({ error: 'Ticket not found' });
-        return;
+        throw new NotFoundError('Ticket not found');
       }
 
       res.json(updated);
@@ -84,7 +85,7 @@ export class TicketController {
         error instanceof Error &&
         error.message === 'No valid fields to update'
       ) {
-        res.status(400).json({ error: error.message });
+        next(new ValidationError(error.message));
         return;
       }
       next(error);
@@ -95,14 +96,12 @@ export class TicketController {
     try {
       const { id } = req.params;
       if (!id) {
-        res.status(400).json({ error: 'ID parameter is required' });
-        return;
+        throw new ValidationError('ID parameter is required');
       }
 
       const deleted = this.ticketService.deleteTicket(id);
       if (!deleted) {
-        res.status(404).json({ error: 'Ticket not found' });
-        return;
+        throw new NotFoundError('Ticket not found');
       }
       res.json({ deleted: true });
     } catch (error) {

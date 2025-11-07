@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Form, Input, Button, Alert, Card } from 'antd';
 import { LoginOutlined } from '@ant-design/icons';
+import styles from './Login.module.css';
 
 interface LoginProps {
   onLogin: (password: string) => void;
@@ -20,24 +21,12 @@ export function Login({ onLogin, error }: LoginProps) {
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '100vh',
-        padding: '1rem',
-      }}
-    >
-      <Card style={{ width: 300 }}>
+    <div className={styles.loginContainer}>
+      <Card className={styles.loginCard}>
         <Form onFinish={handleSubmit}>
-          <h1 style={{ textAlign: 'center', marginBottom: '2rem' }}>Login</h1>
+          <h1 className={styles.loginTitle}>Login</h1>
           {error && (
-            <Alert
-              message={error}
-              type="error"
-              style={{ marginBottom: '1rem' }}
-            />
+            <Alert message={error} type="error" className={styles.loginError} />
           )}
           <Form.Item
             name="password"

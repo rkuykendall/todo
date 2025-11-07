@@ -2,6 +2,7 @@ import type { Ticket } from '@todo/shared';
 import Button from './Button';
 import Card from './Card';
 import DayIndicator from './DayIndicator';
+import styles from './Ticket.module.css';
 import {
   EditOutlined,
   DeleteOutlined,
@@ -146,7 +147,7 @@ export const TicketCard = ({
       </div>
 
       {ticket.deadline && (
-        <div style={{ marginTop: '8px' }}>
+        <div className={styles.deadlineSection}>
           <Tag color={getDeadlineTagColor(ticket.deadline)}>
             <CalendarOutlined /> Deadline: {formatDate(ticket.deadline)}
           </Tag>

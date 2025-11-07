@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
-import { PatchTicketDrawSchema } from '../types/ticket_draw.ts';
+import { UpdateTicketDrawSchema } from '@todo/shared';
 import type { TicketService } from '../services/TicketService.ts';
+import { ValidationError, NotFoundError } from '../middleware/validation.ts';
 
 type AsyncRequestHandler = (
   req: Request,
@@ -46,26 +47,25 @@ export class TicketDrawController {
     try {
       const { id } = req.params;
       if (!id) {
-        res.status(400).json({ error: 'ID parameter is required' });
-        return;
+        throw new ValidationError('ID parameter is required');
       }
 
-      const parse = PatchTicketDrawSchema.safeParse(req.body);
+      const parse = UpdateTicketDrawSchema.safeParse(req.body);
       if (!parse.success) {
-        res.status(400).json({ error: parse.error.flatten() });
-        return;
+        throw new ValidationError(
+          'Invalid ticket draw data',
+          parse.error.flatten()
+        );
       }
 
       const updates = parse.data;
       if (Object.keys(updates).length === 0) {
-        res.status(400).json({ error: 'No valid fields to update.' });
-        return;
+        throw new ValidationError('No valid fields to update');
       }
 
       const updated = this.ticketService.updateTicketDraw(id, updates);
       if (!updated) {
-        res.status(404).json({ error: 'ticket_draw not found.' });
-        return;
+        throw new NotFoundError('Ticket draw not found');
       }
 
       res.json(updated);

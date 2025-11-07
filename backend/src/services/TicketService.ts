@@ -1,7 +1,11 @@
 import type { Database } from 'better-sqlite3';
 import { v4 as uuidv4 } from 'uuid';
-import { dayFields, type Ticket } from '@todo/shared';
-import type { TicketDraw } from '../types/ticket_draw.ts';
+import {
+  dayFields,
+  type Ticket,
+  type TicketDraw,
+  type UpdateTicketDrawInput,
+} from '@todo/shared';
 import {
   getMustDrawQuery,
   getCanDrawQuery,
@@ -34,11 +38,6 @@ export interface CreateTicketData {
 
 export interface UpdateTicketData {
   [key: string]: unknown;
-}
-
-export interface UpdateTicketDrawData {
-  done?: boolean;
-  skipped?: boolean;
 }
 
 /**
@@ -368,7 +367,7 @@ export class TicketService {
   /**
    * Update a ticket draw by ID
    */
-  updateTicketDraw(id: string, updates: UpdateTicketDrawData) {
+  updateTicketDraw(id: string, updates: UpdateTicketDrawInput) {
     if (Object.keys(updates).length === 0) {
       throw new Error('No valid fields to update');
     }
@@ -519,7 +518,9 @@ export class TicketService {
    */
   private normalizeDraw(draw: RawDbDraw): TicketDraw {
     return {
-      ...draw,
+      id: draw.id,
+      created_at: draw.created_at,
+      ticket_id: draw.ticket_id,
       done: Boolean(draw.done),
       skipped: Boolean(draw.skipped),
     };

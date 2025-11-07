@@ -1,8 +1,8 @@
-import type { Ticket } from '@todo/shared';
-import type { TicketDraw } from '../drawSlice';
+import type { Ticket, TicketDraw } from '@todo/shared';
 import Button from './Button';
 import Card from './Card';
 import ColorIcon from './ColorIcon';
+import styles from './Draw.module.css';
 import { Alert, Typography, Tag } from 'antd';
 import {
   UndoOutlined,
@@ -110,8 +110,8 @@ export function DrawCard({
       <motion.div
         initial={{ rotateY: 0 }}
         animate={{
-          rotateY: draw.done ? 360 : 0,
-          scale: draw.skipped ? 0.95 : 1,
+          rotateY: status === 'done' ? 360 : 0,
+          scale: status === 'skipped' ? 0.95 : 1,
         }}
         layout // Enable automatic layout animations
         layoutId={`draw-${draw.id}`} // Unique ID for each draw
@@ -125,9 +125,9 @@ export function DrawCard({
       >
         <Card
           index={index}
-          done={draw.done}
+          done={status === 'done'}
           actions={
-            draw.done || draw.skipped
+            status === 'done' || status === 'skipped'
               ? [
                   <Button
                     icon={<UndoOutlined />}
@@ -160,7 +160,7 @@ export function DrawCard({
                 ]
           }
           title={
-            draw.done ? (
+            status === 'done' ? (
               <motion.div
                 initial={{ scale: 0.5, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -172,7 +172,7 @@ export function DrawCard({
                   type="success"
                 />
               </motion.div>
-            ) : draw.skipped ? (
+            ) : status === 'skipped' ? (
               <ColorIcon
                 icon={<CloseOutlined />}
                 label="Skipped"
@@ -192,7 +192,7 @@ export function DrawCard({
           )}
 
           {hasDeadline && (
-            <div style={{ marginTop: '8px', marginBottom: '8px' }}>
+            <div className={styles.drawSection}>
               <Tag color={deadlineColor}>
                 <CalendarOutlined /> {formatDate(ticket.deadline)}
               </Tag>

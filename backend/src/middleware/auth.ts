@@ -11,20 +11,35 @@ export function basicAuth(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({ error: 'Unauthorized' });
+    res.status(401).json({
+      error: 'Unauthorized',
+      timestamp: new Date().toISOString(),
+      path: req.path,
+      method: req.method,
+    });
     return;
   }
 
   const token = authHeader.split(' ')[1];
   if (!token) {
-    res.status(401).json({ error: 'Unauthorized' });
+    res.status(401).json({
+      error: 'Unauthorized',
+      timestamp: new Date().toISOString(),
+      path: req.path,
+      method: req.method,
+    });
     return;
   }
 
   const passwordToCheck = token.trim();
 
   if (passwordToCheck !== AUTH_PASSWORD) {
-    res.status(401).json({ error: 'Unauthorized' });
+    res.status(401).json({
+      error: 'Unauthorized',
+      timestamp: new Date().toISOString(),
+      path: req.path,
+      method: req.method,
+    });
     return;
   }
 

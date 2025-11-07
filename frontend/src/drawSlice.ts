@@ -1,15 +1,9 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import { API_DOMAIN } from './utils';
+import type { TicketDraw, UpdateTicketDrawInput } from '@todo/shared';
+import { ticketDrawApi } from './api/services';
+import { ApiRequestError } from './api/client';
 import { deleteTicket, fetchTickets } from './ticketSlice';
-
-export interface TicketDraw {
-  id: string;
-  created_at: string;
-  ticket_id: string;
-  done: boolean;
-  skipped: boolean;
-}
 
 interface DrawState {
   draws: TicketDraw[];
@@ -31,22 +25,21 @@ const initialState: DrawState = {
 
 // 🔄 Fetch today's draws
 export const fetchDraws = createAsyncThunk('draws/fetchDraws', async () => {
-  const res = await fetch(`${API_DOMAIN}/ticket_draw`);
-  return await res.json();
+  return await ticketDrawApi.getTodays();
 });
 
 // 📅 Create draws for today
 export const createDraws = createAsyncThunk(
   'draws/createDraws',
   async (_, { rejectWithValue }) => {
-    const res = await fetch(`${API_DOMAIN}/ticket_draw`, {
-      method: 'POST',
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      return rejectWithValue(data);
+    try {
+      return await ticketDrawApi.createDraws();
+    } catch (error) {
+      if (error instanceof ApiRequestError) {
+        return rejectWithValue(error.data);
+      }
+      return rejectWithValue({ error: 'Failed to create draws' });
     }
-    return data;
   }
 );
 
@@ -54,13 +47,10 @@ export const createDraws = createAsyncThunk(
 export const clearDraws = createAsyncThunk(
   'draws/clearDraws',
   async (_, { dispatch }) => {
-    const res = await fetch(`${API_DOMAIN}/ticket_draw`, {
-      method: 'DELETE',
-    });
-    const data = await res.json();
+    const result = await ticketDrawApi.clearAll();
     // Refresh tickets after clearing draws
     await dispatch(fetchTickets());
-    return data;
+    return result;
   }
 );
 
@@ -68,18 +58,13 @@ export const clearDraws = createAsyncThunk(
 export const patchDraw = createAsyncThunk(
   'draws/patchDraw',
   async (
-    { id, ...updates }: Partial<TicketDraw> & { id: string },
+    { id, ...updates }: UpdateTicketDrawInput & { id: string },
     { dispatch }
   ) => {
-    const res = await fetch(`${API_DOMAIN}/ticket_draw/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    });
-    const data = await res.json();
+    const result = await ticketDrawApi.updateStatus(id, updates);
     // After successful update, fetch latest ticket states
     await dispatch(fetchTickets());
-    return data;
+    return result;
   }
 );
 
