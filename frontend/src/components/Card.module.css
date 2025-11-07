@@ -38,7 +38,7 @@
   background: linear-gradient(
     to right,
     transparent,
-    rgba(83, 198, 110, 0.1),
+    var(--shimmer-color, rgba(83, 198, 110, 0.1)),
     transparent
   );
   transform: rotate(35deg);

@@ -100,6 +100,7 @@ export const TicketCard = ({
 
   return (
     <Card
+      done={!!ticket.done}
       index={index}
       actions={[
         <Button

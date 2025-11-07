@@ -1,4 +1,4 @@
-import { Card as AntCard } from 'antd';
+import { Card as AntCard, theme } from 'antd';
 import type { CardProps } from 'antd';
 import { motion } from 'framer-motion';
 import type { MotionProps } from 'framer-motion';
@@ -9,18 +9,28 @@ type MotionCardProps = Omit<CardProps, keyof MotionProps> & MotionProps;
 const MotionCard: React.ComponentType<MotionCardProps> = motion(AntCard);
 
 interface ExtendedCardProps
-  extends Pick<CardProps, 'actions' | 'title' | 'children'> {
+  extends Pick<CardProps, 'actions' | 'title' | 'children' | 'style'> {
   done?: boolean;
   index?: number;
 }
 
 export function Card({ done, index = 0, ...props }: ExtendedCardProps) {
   const screens = useBreakpoint();
+  const { token } = theme.useToken();
+
+  const shimmerColor = `${token.colorSuccess}1A`; // Add alpha transparency
+
+  const cardStyle = done
+    ? ({
+        '--shimmer-color': shimmerColor,
+      } as React.CSSProperties)
+    : {};
 
   const shared = {
     className: styles.card,
     variant: 'borderless' as const,
     'data-done': done,
+    style: { ...cardStyle, ...props.style },
   };
 
   if (!screens.sm) {
