@@ -871,24 +871,26 @@ describe('TicketService Unit Tests', () => {
     });
 
     test('should handle daily frequency correctly (completed yesterday)', () => {
-      // Set time to May 8th
+      // Set time to May 8th (Thursday)
       mockTimeProvider.setMockTime(new Date('2025-05-08T14:00:00.000Z'));
 
       const ticketId = ticketService.createTicket({
         title: 'Daily Frequency Test',
         frequency: 1,
-        can_draw_monday: true,
+        can_draw_thursday: true,
+        can_draw_friday: true,
       });
 
-      // Create a completed draw yesterday
+      // Create a completed draw yesterday (Thursday)
       ticketService.createSingleTicketDraw(ticketId, { done: true });
 
-      // Advance time to today (1 day later)
+      // Advance time to today (Friday, 1 day later)
       mockTimeProvider.setMockTime(new Date('2025-05-09T14:00:00.000Z'));
 
-      // Should NOT be eligible (within 1-day frequency)
-      expect(ticketService.isTicketEligibleForDay(ticketId, 'monday')).toBe(
-        false
+      // Should be eligible because it's a different calendar day
+      // With our fix, daily tickets are eligible on different calendar days
+      expect(ticketService.isTicketEligibleForDay(ticketId, 'friday')).toBe(
+        true
       );
     });
 
@@ -1560,6 +1562,246 @@ describe('TicketService Unit Tests', () => {
       const updatedTicketInList = allTickets.find((t) => t.id === ticketId);
       expect(updatedTicketInList?.title).toBe('Updated Consistency Test');
       expect(updatedTicketInList?.frequency).toBe(3);
+    });
+  });
+
+  describe('Daily Must-Draw Ticket Issue Investigation', () => {
+    test('should replicate Take Pill daily must-draw issue - ticket only drawing every other day', () => {
+      // This test replicates the reported issue where a daily must-draw ticket
+      // "Take Pill" is only drawing every other day instead of daily
+
+      // Create a daily must-draw ticket like "Take Pill"
+      const takePillTicketId = ticketService.createTicket({
+        title: 'Take Pill',
+        frequency: 1, // Daily frequency
+        must_draw_monday: true,
+        must_draw_tuesday: true,
+        must_draw_wednesday: true,
+        must_draw_thursday: true,
+        must_draw_friday: true,
+        must_draw_saturday: true,
+        must_draw_sunday: true,
+        can_draw_monday: true,
+        can_draw_tuesday: true,
+        can_draw_wednesday: true,
+        can_draw_thursday: true,
+        can_draw_friday: true,
+        can_draw_saturday: true,
+        can_draw_sunday: true,
+      });
+
+      // Start on Monday morning
+      mockTimeProvider.setMockTime(new Date('2025-05-12T14:00:00.000Z')); // Monday 8 AM Central
+
+      // Day 1 (Monday): Should be eligible initially
+      expect(
+        ticketService.isTicketEligibleForDay(takePillTicketId, 'monday')
+      ).toBe(true);
+
+      // Complete the draw on Monday
+      ticketService.createSingleTicketDraw(takePillTicketId, { done: true });
+
+      // Still Monday (later): Should NOT be eligible (same day)
+      expect(
+        ticketService.isTicketEligibleForDay(takePillTicketId, 'monday')
+      ).toBe(false);
+
+      // Day 2 (Tuesday): Should be eligible again since it's a new day
+      mockTimeProvider.setMockTime(new Date('2025-05-13T14:00:00.000Z')); // Tuesday 8 AM Central
+      expect(
+        ticketService.isTicketEligibleForDay(takePillTicketId, 'tuesday')
+      ).toBe(true);
+
+      // Complete the draw on Tuesday
+      ticketService.createSingleTicketDraw(takePillTicketId, { done: true });
+
+      // Day 3 (Wednesday): Should be eligible again
+      mockTimeProvider.setMockTime(new Date('2025-05-14T14:00:00.000Z')); // Wednesday 8 AM Central
+      expect(
+        ticketService.isTicketEligibleForDay(takePillTicketId, 'wednesday')
+      ).toBe(true);
+
+      // Complete the draw on Wednesday
+      ticketService.createSingleTicketDraw(takePillTicketId, { done: true });
+
+      // Day 4 (Thursday): Should be eligible again
+      mockTimeProvider.setMockTime(new Date('2025-05-15T14:00:00.000Z')); // Thursday 8 AM Central
+      expect(
+        ticketService.isTicketEligibleForDay(takePillTicketId, 'thursday')
+      ).toBe(true);
+
+      // Verify draw history shows consecutive daily completions
+      const drawHistory = ticketService.getTicketDrawHistory(takePillTicketId);
+      expect(drawHistory).toHaveLength(3); // Monday, Tuesday, Wednesday
+
+      // All draws should be completed
+      drawHistory.forEach((draw) => {
+        expect(draw.done).toBe(true);
+      });
+    });
+
+    test('should test edge case timing that might cause skip - same time different days', () => {
+      // Test if the issue is related to exact timing within the day
+      const takePillTicketId = ticketService.createTicket({
+        title: 'Take Pill - Timing Test',
+        frequency: 1,
+        must_draw_monday: true,
+        must_draw_tuesday: true,
+        must_draw_wednesday: true,
+        can_draw_monday: true,
+        can_draw_tuesday: true,
+        can_draw_wednesday: true,
+      });
+
+      // Monday at exactly midnight (start of day)
+      mockTimeProvider.setMockTime(new Date('2025-05-12T06:00:00.000Z')); // Monday midnight Central
+      expect(
+        ticketService.isTicketEligibleForDay(takePillTicketId, 'monday')
+      ).toBe(true);
+
+      // Complete at midnight
+      ticketService.createSingleTicketDraw(takePillTicketId, { done: true });
+
+      // Tuesday at exactly midnight (24 hours later)
+      mockTimeProvider.setMockTime(new Date('2025-05-13T06:00:00.000Z')); // Tuesday midnight Central
+      expect(
+        ticketService.isTicketEligibleForDay(takePillTicketId, 'tuesday')
+      ).toBe(true);
+
+      // Complete at midnight
+      ticketService.createSingleTicketDraw(takePillTicketId, { done: true });
+
+      // Wednesday at exactly midnight (48 hours after original)
+      mockTimeProvider.setMockTime(new Date('2025-05-14T06:00:00.000Z')); // Wednesday midnight Central
+      expect(
+        ticketService.isTicketEligibleForDay(takePillTicketId, 'wednesday')
+      ).toBe(true);
+    });
+
+    test('should test problematic timing - 23 hour gap', () => {
+      // This tests the potential issue where completing at different times of day
+      // might cause the julian day calculation to prevent next-day eligibility
+      const takePillTicketId = ticketService.createTicket({
+        title: 'Take Pill - 23hr Gap Test',
+        frequency: 1,
+        must_draw_monday: true,
+        must_draw_tuesday: true,
+        can_draw_monday: true,
+        can_draw_tuesday: true,
+      });
+
+      // Monday at 11 PM
+      mockTimeProvider.setMockTime(new Date('2025-05-13T05:00:00.000Z')); // Monday 11 PM Central
+      expect(
+        ticketService.isTicketEligibleForDay(takePillTicketId, 'monday')
+      ).toBe(true);
+
+      // Complete late Monday night
+      ticketService.createSingleTicketDraw(takePillTicketId, { done: true });
+
+      // Tuesday morning (only ~7 hours later, but different day)
+      mockTimeProvider.setMockTime(new Date('2025-05-13T12:00:00.000Z')); // Tuesday 6 AM Central
+
+      // This should be eligible because it's a new day, even though less than 24 hours
+      // If this fails, it suggests the julian day calculation is the problem
+      expect(
+        ticketService.isTicketEligibleForDay(takePillTicketId, 'tuesday')
+      ).toBe(true);
+    });
+
+    test('should test 25 hour gap to confirm frequency works', () => {
+      // This should definitely work since it's more than 24 hours
+      const takePillTicketId = ticketService.createTicket({
+        title: 'Take Pill - 25hr Test',
+        frequency: 1,
+        must_draw_monday: true,
+        must_draw_tuesday: true,
+        can_draw_monday: true,
+        can_draw_tuesday: true,
+      });
+
+      // Monday at 8 AM
+      mockTimeProvider.setMockTime(new Date('2025-05-12T14:00:00.000Z')); // Monday 8 AM Central
+      expect(
+        ticketService.isTicketEligibleForDay(takePillTicketId, 'monday')
+      ).toBe(true);
+
+      ticketService.createSingleTicketDraw(takePillTicketId, { done: true });
+
+      // Tuesday at 9 AM (25 hours later)
+      mockTimeProvider.setMockTime(new Date('2025-05-13T15:00:00.000Z')); // Tuesday 9 AM Central
+      expect(
+        ticketService.isTicketEligibleForDay(takePillTicketId, 'tuesday')
+      ).toBe(true);
+    });
+
+    test('should demonstrate the julian day calculation bug', () => {
+      // This test explicitly shows the bug in the julian day calculation
+      const takePillTicketId = ticketService.createTicket({
+        title: 'Julian Day Bug Demo',
+        frequency: 1,
+        must_draw_monday: true,
+        must_draw_tuesday: true,
+        can_draw_monday: true,
+        can_draw_tuesday: true,
+      });
+
+      // Monday at exactly 8:00 AM
+      mockTimeProvider.setMockTime(new Date('2025-05-12T14:00:00.000Z')); // Monday 8 AM Central
+      ticketService.createSingleTicketDraw(takePillTicketId, { done: true });
+
+      // Tuesday at exactly 8:00 AM (exactly 24 hours later)
+      mockTimeProvider.setMockTime(new Date('2025-05-13T14:00:00.000Z')); // Tuesday 8 AM Central
+
+      // With the fix, this should now work because we check calendar dates for all frequencies
+      // instead of using julian day time differences
+      expect(
+        ticketService.isTicketEligibleForDay(takePillTicketId, 'tuesday')
+      ).toBe(true);
+    });
+
+    test('should use calendar date logic consistently for all frequencies', () => {
+      // Test that weekly and daily tickets both use calendar date logic consistently
+      const weeklyTicketId = ticketService.createTicket({
+        title: 'Weekly Consistency Test',
+        frequency: 7,
+        must_draw_monday: true,
+        must_draw_tuesday: true,
+        can_draw_monday: true,
+        can_draw_tuesday: true,
+      });
+
+      const dailyTicketId = ticketService.createTicket({
+        title: 'Daily Consistency Test',
+        frequency: 1,
+        must_draw_monday: true,
+        must_draw_tuesday: true,
+        can_draw_monday: true,
+        can_draw_tuesday: true,
+      });
+
+      // Monday morning - complete both tickets
+      mockTimeProvider.setMockTime(new Date('2025-05-12T14:00:00.000Z')); // Monday 8 AM Central
+      ticketService.createSingleTicketDraw(weeklyTicketId, { done: true });
+      ticketService.createSingleTicketDraw(dailyTicketId, { done: true });
+
+      // Tuesday morning - daily should be eligible, weekly should not
+      mockTimeProvider.setMockTime(new Date('2025-05-13T14:00:00.000Z')); // Tuesday 8 AM Central
+      expect(
+        ticketService.isTicketEligibleForDay(dailyTicketId, 'tuesday')
+      ).toBe(true);
+      expect(
+        ticketService.isTicketEligibleForDay(weeklyTicketId, 'tuesday')
+      ).toBe(false);
+
+      // Next Monday (7 calendar days later) - both should be eligible
+      mockTimeProvider.setMockTime(new Date('2025-05-19T14:00:00.000Z')); // Next Monday 8 AM Central
+      expect(
+        ticketService.isTicketEligibleForDay(dailyTicketId, 'monday')
+      ).toBe(true);
+      expect(
+        ticketService.isTicketEligibleForDay(weeklyTicketId, 'monday')
+      ).toBe(true);
     });
   });
 

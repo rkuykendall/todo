@@ -1,6 +1,6 @@
 import type { Database } from 'better-sqlite3';
 import { v4 as uuidv4 } from 'uuid';
-import { dayFields } from '@todo/shared';
+import { dayFields, type Ticket } from '@todo/shared';
 import type { TicketDraw } from '../types/ticket_draw.ts';
 import {
   getMustDrawQuery,
@@ -68,17 +68,17 @@ export class TicketService {
    * Get all tickets from the database
    */
   getAllTickets() {
-    const raw = this.db.prepare('SELECT * FROM ticket').all() as RawDbTicket[];
+    const raw = this.db.prepare<[], RawDbTicket>('SELECT * FROM ticket').all();
     return raw.map(normalizeTicket);
   }
 
   /**
    * Get a ticket by ID
    */
-  getTicketById(id: string) {
-    const ticket = this.db
-      .prepare('SELECT * FROM ticket WHERE id = ?')
-      .get(id) as RawDbTicket | undefined;
+  getTicketById(id: string): Ticket | null {
+    const ticket: RawDbTicket | undefined = this.db
+      .prepare<string, RawDbTicket>('SELECT * FROM ticket WHERE id = ?')
+      .get(id);
 
     if (!ticket) {
       return null;
@@ -133,9 +133,9 @@ export class TicketService {
    * Update a ticket by ID
    */
   updateTicket(id: string, updates: UpdateTicketData) {
-    const existing = this.db
-      .prepare('SELECT * FROM ticket WHERE id = ?')
-      .get(id) as RawDbTicket | undefined;
+    const existing: RawDbTicket | undefined = this.db
+      .prepare<string, RawDbTicket>('SELECT * FROM ticket WHERE id = ?')
+      .get(id);
 
     if (!existing) {
       return null;
@@ -196,8 +196,12 @@ export class TicketService {
     })();
 
     const updated = this.db
-      .prepare('SELECT * FROM ticket WHERE id = ?')
-      .get(id) as RawDbTicket;
+      .prepare<string, RawDbTicket>('SELECT * FROM ticket WHERE id = ?')
+      .get(id);
+
+    if (!updated) {
+      throw new Error('Ticket not found after update');
+    }
 
     return normalizeTicket(updated);
   }
@@ -214,12 +218,11 @@ export class TicketService {
    * Get all ticket draws for today
    */
   getTodaysTicketDraws() {
-    const today = this.timeProvider.getTodayDate();
-    const todayDate = today.split(' ')[0]; // Extract just the date part (YYYY-MM-DD)
+    const todayDate = this.timeProvider.getTodayDate();
 
     const draws = this.db
-      .prepare(TicketService.SELECT_DRAWS_BY_DATE)
-      .all(todayDate) as RawDbDraw[];
+      .prepare<string, RawDbDraw>(TicketService.SELECT_DRAWS_BY_DATE)
+      .all(todayDate);
 
     return draws.map(this.normalizeDraw);
   }
@@ -243,24 +246,24 @@ export class TicketService {
     const maxDrawCount = calculateDailyDrawCount(this.db, currentDate);
 
     // First, prioritize tickets with deadline today or in the past
-    const deadlineTickets = this.db
-      .prepare(getDeadlineTicketsQuery(todayDay))
-      .all(todayTimestamp) as RawDbTicket[];
+    const deadlineTickets: RawDbTicket[] = this.db
+      .prepare<string, RawDbTicket>(getDeadlineTicketsQuery(todayDay))
+      .all(todayTimestamp);
 
     // Second, get must-draw tickets, respecting frequency and done status
     const mustDrawTickets = this.db
-      .prepare(getMustDrawQuery(todayDay, true))
-      .all(todayTimestamp, todayTimestamp) as RawDbTicket[];
+      .prepare<string[], RawDbTicket>(getMustDrawQuery(todayDay, true))
+      .all(todayTimestamp, todayTimestamp);
 
     // Third, get approaching deadline tickets (within next 7 days)
-    const approachingDeadlineTickets = this.db
-      .prepare(getApproachingDeadlineQuery(todayDay))
-      .all(todayTimestamp, todayTimestamp, todayTimestamp) as RawDbTicket[];
+    const approachingDeadlineTickets: RawDbTicket[] = this.db
+      .prepare<string[], RawDbTicket>(getApproachingDeadlineQuery(todayDay))
+      .all(todayTimestamp, todayTimestamp, todayTimestamp);
 
     // Finally, get eligible can-draw tickets without deadline constraints
-    const canDrawTickets = this.db
-      .prepare(getCanDrawQuery(todayDay, true))
-      .all(todayTimestamp, todayTimestamp) as RawDbTicket[];
+    const canDrawTickets: RawDbTicket[] = this.db
+      .prepare<string[], RawDbTicket>(getCanDrawQuery(todayDay, true))
+      .all(todayTimestamp, todayTimestamp);
 
     // Filter out tickets that already have draws and build priority list
     const selectedTickets: RawDbTicket[] = [];
@@ -319,14 +322,17 @@ export class TicketService {
    * Create new ticket draws for today based on business logic
    */
   createTicketDraws() {
-    const today = this.timeProvider.getTodayDate();
-    const todayDate = today.split(' ')[0]; // Extract just the date part (YYYY-MM-DD)
+    const todayDate = this.timeProvider.getTodayDate();
     const todayDay = this.getTodayDayString();
 
     // Get existing draws
     const existingDraws = this.db
-      .prepare(TicketService.SELECT_TICKET_IDS_BY_DATE)
-      .all(todayDate) as Array<{ ticket_id: string }>;
+      .prepare<
+        string,
+        { ticket_id: string }
+      >(TicketService.SELECT_TICKET_IDS_BY_DATE)
+      .all(todayDate);
+
     const existingTicketIds = new Set(existingDraws.map((d) => d.ticket_id));
 
     // Select and create new draws
@@ -353,8 +359,8 @@ export class TicketService {
 
     // Get all draws for today, including newly created ones
     const todaysDraws = this.db
-      .prepare(TicketService.SELECT_DRAWS_BY_DATE)
-      .all(today) as RawDbDraw[];
+      .prepare<string, RawDbDraw>(TicketService.SELECT_DRAWS_BY_DATE)
+      .all(todayDate);
 
     return todaysDraws.map(this.normalizeDraw);
   }
@@ -368,8 +374,8 @@ export class TicketService {
     }
 
     const existing = this.db
-      .prepare('SELECT * FROM ticket_draw WHERE id = ?')
-      .get(id) as RawDbDraw | undefined;
+      .prepare<string, RawDbDraw>('SELECT * FROM ticket_draw WHERE id = ?')
+      .get(id);
 
     if (!existing) {
       return null;
@@ -392,8 +398,12 @@ export class TicketService {
       // Only mark the parent ticket as done if the draw is marked as done (not skipped)
       if (updates.done === true) {
         const ticket = this.db
-          .prepare('SELECT * FROM ticket WHERE id = ?')
-          .get(existing.ticket_id) as RawDbTicket;
+          .prepare<string, RawDbTicket>('SELECT * FROM ticket WHERE id = ?')
+          .get(existing.ticket_id);
+
+        if (!ticket) {
+          throw new Error('Parent ticket not found');
+        }
 
         // If the ticket is NOT recurring, mark it as done when its draw is marked as done
         if (!ticket.recurring) {
@@ -406,8 +416,12 @@ export class TicketService {
     })();
 
     const updated = this.db
-      .prepare('SELECT * FROM ticket_draw WHERE id = ?')
-      .get(id) as RawDbDraw;
+      .prepare<string, RawDbDraw>('SELECT * FROM ticket_draw WHERE id = ?')
+      .get(id);
+
+    if (!updated) {
+      throw new Error('Ticket draw not found after update');
+    }
 
     return this.normalizeDraw(updated);
   }
@@ -482,10 +496,11 @@ export class TicketService {
    */
   public getTicketDrawHistory(ticketId: string): TicketDraw[] {
     const draws = this.db
-      .prepare(
-        'SELECT * FROM ticket_draw WHERE ticket_id = ? ORDER BY created_at DESC'
-      )
-      .all(ticketId) as RawDbDraw[];
+      .prepare<
+        string,
+        RawDbDraw
+      >('SELECT * FROM ticket_draw WHERE ticket_id = ? ORDER BY created_at DESC')
+      .all(ticketId);
 
     return draws.map(this.normalizeDraw);
   }

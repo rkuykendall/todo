@@ -9,6 +9,46 @@
  */
 
 /**
+ * Common frequency constraint check - used across multiple queries
+ * Checks if a ticket was completed within its frequency period using calendar date logic
+ */
+const FREQUENCY_CONSTRAINT_SUBQUERY = `
+  NOT EXISTS (
+    SELECT 1 FROM ticket_draw td
+    WHERE td.ticket_id = t.id
+    AND td.done = 1
+    AND julianday(DATE(?, 'localtime')) - julianday(DATE(td.created_at, 'localtime')) < t.frequency
+  )
+`;
+
+/**
+ * Common base conditions for eligible tickets
+ */
+const getBaseTicketConditions = (todayDay: string) => `
+  t.done IS NULL
+  AND t.can_draw_${todayDay} = 1
+`;
+
+/**
+ * Common ordering for ticket selection
+ */
+const STANDARD_TICKET_ORDER = 'ORDER BY t.last_drawn ASC NULLS FIRST, RANDOM()';
+
+/**
+ * Common frequency eligibility check
+ */
+const getFrequencyEligibilityClause = () => `
+  AND (
+    t.last_drawn IS NULL
+    OR (
+      -- Check if the ticket was successfully completed in a recent draw
+      -- Use calendar date comparison for consistent behavior across all frequencies
+      ${FREQUENCY_CONSTRAINT_SUBQUERY}
+    )
+  )
+`;
+
+/**
  * Get must-draw tickets based on day, frequency, and completion status
  *
  * This query finds tickets that:
@@ -32,22 +72,10 @@ export function getMustDrawQuery(
   return `
     SELECT t.* FROM ticket t
     WHERE t.must_draw_${todayDay} = 1
-    AND t.done IS NULL
+    AND ${getBaseTicketConditions(todayDay)}
     ${deadlineClause}
-    AND (
-      t.last_drawn IS NULL
-      OR (
-        -- Check if the ticket was successfully completed in a recent draw
-        -- If not completed (only skipped), ignore frequency and allow it to be drawn again
-        NOT EXISTS (
-          SELECT 1 FROM ticket_draw td
-          WHERE td.ticket_id = t.id
-          AND td.done = 1
-          AND julianday(?) - julianday(td.created_at) <= t.frequency
-        )
-      )
-    )
-    ORDER BY t.last_drawn ASC NULLS FIRST, RANDOM()
+    ${getFrequencyEligibilityClause()}
+    ${STANDARD_TICKET_ORDER}
   `;
 }
 
@@ -68,23 +96,11 @@ export function getCanDrawQuery(
 
   return `
     SELECT t.* FROM ticket t
-    WHERE t.can_draw_${todayDay} = 1 
-    AND t.must_draw_${todayDay} = 0
-    AND t.done IS NULL
+    WHERE t.must_draw_${todayDay} = 0
+    AND ${getBaseTicketConditions(todayDay)}
     ${deadlineClause}
-    AND (
-      t.last_drawn IS NULL
-      OR (
-        -- Check if the ticket was successfully completed in a recent draw
-        NOT EXISTS (
-          SELECT 1 FROM ticket_draw td
-          WHERE td.ticket_id = t.id
-          AND td.done = 1
-          AND julianday(?) - julianday(td.created_at) <= t.frequency
-        )
-      )
-    )
-    ORDER BY t.last_drawn ASC NULLS FIRST, RANDOM()
+    ${getFrequencyEligibilityClause()}
+    ${STANDARD_TICKET_ORDER}
   `;
 }
 
@@ -114,24 +130,12 @@ export function getDeadlineTicketsQuery(todayDay: string): string {
 export function getApproachingDeadlineQuery(todayDay: string): string {
   return `
     SELECT t.* FROM ticket t
-    WHERE t.can_draw_${todayDay} = 1 
-    AND t.must_draw_${todayDay} = 0
-    AND t.done IS NULL
+    WHERE t.must_draw_${todayDay} = 0
+    AND ${getBaseTicketConditions(todayDay)}
     AND t.deadline IS NOT NULL
     AND date(t.deadline) > date(?)
     AND julianday(t.deadline) - julianday(?) <= 7
-    AND (
-      t.last_drawn IS NULL
-      OR (
-        -- Check if the ticket was successfully completed in a recent draw
-        NOT EXISTS (
-          SELECT 1 FROM ticket_draw td
-          WHERE td.ticket_id = t.id
-          AND td.done = 1
-          AND julianday(?) - julianday(td.created_at) <= t.frequency
-        )
-      )
-    )
+    ${getFrequencyEligibilityClause()}
     ORDER BY date(t.deadline) ASC, t.last_drawn ASC NULLS FIRST, RANDOM()
   `;
 }
