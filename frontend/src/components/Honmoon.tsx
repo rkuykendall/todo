@@ -141,7 +141,13 @@ const FRAGMENT_NO_DERIV = `
   }
 `;
 
-export default function Honmoon({ visible }: { visible: boolean }) {
+export default function Honmoon({
+  visible,
+  children,
+}: {
+  visible: boolean;
+  children: React.ReactNode;
+}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const programRef = useRef<WebGLProgram | null>(null);
@@ -333,23 +339,26 @@ export default function Honmoon({ visible }: { visible: boolean }) {
   }, [visible]);
 
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          className={styles.overlay}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{
-            duration: 1.2,
-            ease: 'easeInOut',
-          }}
-        >
-          <div className={styles.container}>
-            <canvas ref={canvasRef} className={styles.canvas} />
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div className={styles.wrapper}>
+      <AnimatePresence>
+        {visible && (
+          <motion.div
+            className={styles.overlay}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{
+              duration: 1.2,
+              ease: 'easeInOut',
+            }}
+          >
+            <div className={styles.container}>
+              <canvas ref={canvasRef} className={styles.canvas} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <div className={styles.content}>{children}</div>
+    </div>
   );
 }
