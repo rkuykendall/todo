@@ -1,6 +1,6 @@
-import type { Ticket } from '@todo/shared';
+import type { Ticket, NewTicketInput, UpdateTicketInput } from '@todo/shared';
 import { dayFields } from '@todo/shared';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Form,
   Input,
@@ -69,12 +69,22 @@ const generateEmptyDayFieldValues = (): Record<string, boolean> => {
 };
 
 interface TicketFormProps {
-  initialValues?: Partial<Ticket>;
-  onSubmit: (values: Partial<Ticket>) => void;
+  initialValues?: undefined; // For new tickets
+  onSubmit: (values: NewTicketInput) => void;
   title: string;
   open: boolean;
   onCancel: () => void;
 }
+
+interface TicketEditFormProps {
+  initialValues: Partial<Ticket>; // For editing existing tickets
+  onSubmit: (values: UpdateTicketInput) => void;
+  title: string;
+  open: boolean;
+  onCancel: () => void;
+}
+
+type AllTicketFormProps = TicketFormProps | TicketEditFormProps;
 
 type FormValues = Pick<Ticket, 'title' | 'recurring' | 'frequency'> & {
   deadline: string | null;
@@ -97,13 +107,13 @@ const toLabel = (day: DayFieldKey): string => {
   return `${firstLetter}${day.slice(1, 3)}`;
 };
 
-function TicketForm({
-  initialValues = emptyValues,
+export default function TicketForm({
+  initialValues,
   onSubmit,
   title,
   open,
   onCancel,
-}: TicketFormProps) {
+}: AllTicketFormProps) {
   const [form] = Form.useForm<FormValues>();
   const titleInputRef = useRef<InputRef>(null);
   const [error, setError] = useState<string | null>(null);
@@ -111,14 +121,15 @@ function TicketForm({
   // Watch the "recurring" field value to conditionally render the frequency field
   const recurring = Form.useWatch('recurring', form);
 
-  const getInitialValue = useMemo(() => {
-    return <K extends keyof FormValues>(key: K): FormValues[K] => {
-      return getInitialValueOrDefault(key, initialValues, emptyValues);
-    };
-  }, [initialValues]);
+  const getInitialValue = useCallback(
+    <K extends keyof FormValues>(key: K): FormValues[K] => {
+      return getInitialValueOrDefault(key, initialValues || {}, emptyValues);
+    },
+    [initialValues]
+  );
 
   const dayFieldEntries = useMemo(() => {
-    return generateDayFieldEntries(initialValues, emptyValues);
+    return generateDayFieldEntries(initialValues || {}, emptyValues);
   }, [initialValues]);
 
   useEffect(() => {
@@ -142,14 +153,41 @@ function TicketForm({
     try {
       setError(null);
 
-      // Always ensure frequency is a number (defaults to 1 if not recurring)
-      const submittedValues = {
-        ...values,
-        // If not recurring, ensure frequency is still a valid number (default to 1)
-        frequency: values.recurring ? Number(values.frequency) || 1 : 1,
-      };
+      // Transform FormValues to NewTicketInput/UpdateTicketInput format
+      // If we have initialValues, this is an edit operation (UpdateTicketInput)
+      // Otherwise, it's a create operation (NewTicketInput)
+      const isEdit = initialValues && Object.keys(initialValues).length > 0;
 
-      await onSubmit(submittedValues);
+      if (isEdit) {
+        // For updates, only include changed fields
+        const submittedValues: UpdateTicketInput = {
+          ...values,
+          frequency: values.recurring ? Number(values.frequency) || 1 : 1,
+          deadline: values.deadline || null,
+        };
+        await onSubmit(submittedValues);
+      } else {
+        // For new tickets, ensure all required fields are present
+        const submittedValues: NewTicketInput = {
+          title: values.title || '',
+          recurring: values.recurring || false,
+          frequency: values.recurring ? Number(values.frequency) || 1 : 1,
+          deadline: values.deadline || null,
+          ...Object.fromEntries(
+            dayFields.flatMap((day) => [
+              [
+                `can_draw_${day}`,
+                values[`can_draw_${day}` as keyof FormValues] || false,
+              ],
+              [
+                `must_draw_${day}`,
+                values[`must_draw_${day}` as keyof FormValues] || false,
+              ],
+            ])
+          ),
+        };
+        await onSubmit(submittedValues);
+      }
       form.resetFields();
     } catch (err) {
       // Handle validation errors from the backend
@@ -198,7 +236,7 @@ function TicketForm({
           Cancel
         </Button>,
         <Button key="submit" onClick={() => form.submit()} type="primary">
-          {initialValues.id ? 'Save Changes' : 'Add Ticket'}
+          {initialValues?.id ? 'Save Changes' : 'Add Ticket'}
         </Button>,
       ]}
       onCancel={onCancel}
@@ -303,5 +341,3 @@ function TicketForm({
     </Modal>
   );
 }
-
-export default TicketForm;

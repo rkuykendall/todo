@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import type { Ticket as TicketType } from '@todo/shared';
+import type {
+  Ticket as TicketType,
+  NewTicketInput,
+  UpdateTicketInput,
+} from '@todo/shared';
 import {
   ConfigProvider,
   Typography,
@@ -363,7 +367,7 @@ function App() {
 
             <TicketForm
               onCancel={() => setIsAddModalOpen(false)}
-              onSubmit={(ticket) => {
+              onSubmit={(ticket: NewTicketInput) => {
                 dispatch(addTicket(ticket))
                   .unwrap()
                   .then(() => {
@@ -382,7 +386,7 @@ function App() {
             <TicketForm
               initialValues={editingTicket || undefined}
               onCancel={() => setEditingTicket(null)}
-              onSubmit={(updates) => {
+              onSubmit={(updates: UpdateTicketInput) => {
                 if (editingTicket) {
                   dispatch(updateTicket({ id: editingTicket.id, updates }))
                     .unwrap()
