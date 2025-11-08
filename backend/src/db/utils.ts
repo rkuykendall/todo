@@ -208,58 +208,66 @@ export function denormalizeTicket(
 }
 
 /**
- * Calculate daily draw count based on completion rate in past week
- * Returns a value between 5-10: 5 if few tickets completed, 10 if many completed
+ * Calculate daily draw count based on whether the previous day's target was met
+ * Uses recursion to determine previous day's target and actual completion
+ * Returns a value between 5-10: +1 if target was met, -1 if missed
+ * If no draws on previous day, looks back up to 7 days for the most recent data
  */
 export function calculateDailyDrawCount(
   db: Database.Database,
-  currentDate?: Date
+  currentDate: Date,
+  lookbackDays = 0
 ): number {
-  // Get one-week-ago date - use provided date or current date
-  const today = currentDate || new Date();
-  const oneWeekAgo = new Date(today);
-  oneWeekAgo.setDate(today.getDate() - 7);
+  const minDrawCount = 3;
+  const maxDrawCount = 10;
+  const maxLookbackDays = 7;
 
-  const todayISO = formatDateISO(today);
-  const oneWeekAgoISO = formatDateISO(oneWeekAgo);
-
-  // Count completed draws in the past week
-  const completedDraws = db
-    .prepare(
-      `
-    SELECT COUNT(*) as count 
-    FROM ticket_draw 
-    WHERE done = 1 
-    AND datetime(created_at) BETWEEN datetime(?) AND datetime(?)
-  `
-    )
-    .get(oneWeekAgoISO, todayISO) as { count: number };
-
-  // Count total draws in the past week
-  const totalDraws = db
-    .prepare(
-      `
-    SELECT COUNT(*) as count 
-    FROM ticket_draw 
-    WHERE datetime(created_at) BETWEEN datetime(?) AND datetime(?)
-  `
-    )
-    .get(oneWeekAgoISO, todayISO) as { count: number };
-
-  // Calculate completion rate with better default handling
-  let drawCount = 5; // Default minimum if no data
-
-  if (totalDraws.count > 0) {
-    // If we have data, calculate based on completion rate
-    const completionRate = completedDraws.count / totalDraws.count;
-    const minDrawCount = 5;
-    const maxDrawCount = 10;
-    drawCount = Math.round(
-      minDrawCount + completionRate * (maxDrawCount - minDrawCount)
-    );
+  // Base case: if we've looked back too far, return default
+  if (lookbackDays >= maxLookbackDays) {
+    return minDrawCount;
   }
 
-  return drawCount;
+  // Calculate the date to check (yesterday if lookbackDays = 0, day before that if 1, etc.)
+  const checkDate = new Date(currentDate);
+  checkDate.setDate(currentDate.getDate() - (lookbackDays + 1));
+  const checkDateISO = formatDateISO(checkDate);
+
+  // Count total draws created on that date
+  const totalDraws = db
+    .prepare<string, { count: number }>(
+      `SELECT COUNT(*) as count 
+       FROM ticket_draw 
+       WHERE date(created_at) = ?`
+    )
+    .get(checkDateISO);
+
+  // If no draws on this date, recurse to check the previous day
+  if (totalDraws?.count === 0) {
+    return calculateDailyDrawCount(db, currentDate, lookbackDays + 1);
+  }
+
+  // Count completed draws on that date
+  const completedDraws = db
+    .prepare<string, { count: number }>(
+      `SELECT COUNT(*) as count 
+       FROM ticket_draw 
+       WHERE date(created_at) = ? AND done = 1`
+    )
+    .get(checkDateISO);
+
+  // Recursively get what the target was for that previous day
+  const previousTarget = calculateDailyDrawCount(db, checkDate, 0);
+
+  // Check if the target was met (completed draws >= target)
+  const targetWasMet = (completedDraws?.count ?? 0) >= previousTarget;
+
+  if (targetWasMet) {
+    // Target was met, increase by 1 (up to max)
+    return Math.min(previousTarget + 1, maxDrawCount);
+  } else {
+    // Target was missed, decrease by 1 (down to min)
+    return Math.max(previousTarget - 1, minDrawCount);
+  }
 }
 
 /**
