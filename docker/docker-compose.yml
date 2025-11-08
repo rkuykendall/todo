@@ -39,7 +39,7 @@ services:
         cd /app
         npm install
 
-        echo "Building shared library..."
+        echo "Building shared library first (required dependency)..."
         npm run build --workspace=shared
 
         echo "Building backend workspace..."
@@ -96,6 +96,9 @@ services:
         echo "Installing dependencies using npm workspaces..."
         cd /app
         npm install
+
+        echo "Building shared library first (required dependency)..."
+        npm run build --workspace=shared
 
         echo "Building frontend workspace..."
         npm run build --workspace=frontend
