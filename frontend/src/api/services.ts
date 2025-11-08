@@ -4,6 +4,7 @@ import type {
   TicketDraw,
   TicketOperations,
   TicketDrawOperations,
+  DailyHistory,
   NewTicketInput,
   UpdateTicketInput,
   UpdateTicketDrawInput,
@@ -93,6 +94,19 @@ export class TicketDrawApiService {
   }
 }
 
+/**
+ * Type-safe API service for history operations
+ */
+export class HistoryApiService {
+  /**
+   * Fetch daily history (30 days, hardcoded to match header width)
+   */
+  async getDailyHistory(): Promise<{ data: DailyHistory[] }> {
+    return await apiClient.get<{ data: DailyHistory[] }>(`/history/daily`);
+  }
+}
+
 // Create and export service instances
 export const ticketApi = new TicketApiService();
 export const ticketDrawApi = new TicketDrawApiService();
+export const historyApi = new HistoryApiService();

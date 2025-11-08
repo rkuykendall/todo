@@ -5,6 +5,7 @@ import {
   type Ticket,
   type TicketDraw,
   type UpdateTicketDrawInput,
+  type DailyHistory,
 } from '@todo/shared';
 import {
   getMustDrawQuery,
@@ -511,6 +512,50 @@ export class TicketService {
   public calculateDailyDrawCount(): number {
     const currentDate = new Date(this.timeProvider.getCurrentTimestamp());
     return calculateDailyDrawCount(this.db, currentDate);
+  }
+
+  /**
+   * Get daily completion history
+   */
+  public getDailyHistory(): DailyHistory[] {
+    const days = 47; // Hardcoded to match header width
+    // Use TimeProvider for consistent date calculation (works with mock times in tests)
+    const currentDate = new Date(this.timeProvider.getCurrentTimestamp());
+    const daysAgo = new Date(currentDate);
+    // Subtract (days - 1) to get the correct range: asking for 3 days should give today + 2 previous
+    daysAgo.setDate(currentDate.getDate() - (days - 1));
+    const cutoffDate = daysAgo.toISOString().split('T')[0] || '1970-01-01'; // Get YYYY-MM-DD format
+
+    const query = `
+      SELECT 
+        DATE(datetime(created_at, 'localtime')) as date,
+        COUNT(*) as totalDraws,
+        SUM(CASE WHEN done = 1 THEN 1 ELSE 0 END) as completedDraws,
+        SUM(CASE WHEN skipped = 1 THEN 1 ELSE 0 END) as skippedDraws
+      FROM ticket_draw 
+      WHERE DATE(datetime(created_at, 'localtime')) >= ?
+      GROUP BY DATE(datetime(created_at, 'localtime'))
+      ORDER BY date DESC
+    `;
+
+    const rows = this.db
+      .prepare<
+        string,
+        {
+          date: string;
+          totalDraws: number;
+          completedDraws: number;
+          skippedDraws: number;
+        }
+      >(query)
+      .all(cutoffDate);
+
+    return rows.map((row) => ({
+      date: row.date,
+      totalDraws: row.totalDraws,
+      completedDraws: row.completedDraws,
+      skippedDraws: row.skippedDraws,
+    }));
   }
 
   /**

@@ -3,12 +3,14 @@ import { validateIdParam } from '../middleware/validation.ts';
 import type { TicketController } from '../controllers/TicketController.ts';
 import type { TicketDrawController } from '../controllers/TicketDrawController.ts';
 import type { HealthController } from '../controllers/HealthController.ts';
+import type { HistoryController } from '../controllers/HistoryController.ts';
 
 export function setupRoutes(
   app: Application,
   ticketController: TicketController,
   ticketDrawController: TicketDrawController,
-  healthController: HealthController
+  healthController: HealthController,
+  historyController: HistoryController
 ) {
   // Health check
   app.get('/health', healthController.checkHealth);
@@ -29,4 +31,7 @@ export function setupRoutes(
     ticketDrawController.updateTicketDraw
   );
   app.delete('/ticket_draw', ticketDrawController.deleteAllDraws);
+
+  // History routes
+  app.get('/history/daily', historyController.getDailyHistory);
 }

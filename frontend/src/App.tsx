@@ -31,6 +31,7 @@ import {
   updateTicket,
 } from './ticketSlice';
 import { fetchDraws, patchDraw, createDraws, clearDraws } from './drawSlice';
+import { fetchDailyHistory } from './historySlice';
 import TicketForm from './components/TicketForm';
 import Button from './components/Button';
 import Space from './components/Space';
@@ -41,6 +42,7 @@ import { apiClient } from './api/client';
 import Header from './components/Header';
 import ErrorBoundary from './components/ErrorBoundary';
 import Honmoon from './components/Honmoon';
+import HistoryGraph from './components/HistoryGraph';
 
 type TicketFilter = 'tasks' | 'recurring' | 'done';
 
@@ -123,6 +125,7 @@ function App() {
     if (token) {
       dispatch(fetchTickets());
       dispatch(fetchDraws());
+      dispatch(fetchDailyHistory());
     }
   }, [dispatch, token]);
 
@@ -197,6 +200,8 @@ function App() {
         {contextHolder}
         <Honmoon visible={allDrawsCompleted}>
           <Space direction="vertical" size="large" block>
+            <HistoryGraph />
+
             <Header
               title={
                 <Typography.Title level={1} style={{ margin: 0 }}>

@@ -102,6 +102,14 @@ export type TicketDrawOperations = {
   clear: ApiOperation<void, { deleted: number }>;
 };
 
+// History data types
+export interface DailyHistory {
+  date: string; // ISO date string (YYYY-MM-DD)
+  totalDraws: number;
+  completedDraws: number;
+  skippedDraws: number;
+}
+
 // Type guards for runtime type checking
 export function isTicketCompleted(
   ticket: import('./index.js').Ticket

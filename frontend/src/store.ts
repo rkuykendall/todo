@@ -1,11 +1,13 @@
 import { configureStore } from '@reduxjs/toolkit';
 import ticketReducer from './ticketSlice';
 import drawReducer from './drawSlice';
+import historyReducer from './historySlice';
 
 const store = configureStore({
   reducer: {
     tickets: ticketReducer,
     draws: drawReducer,
+    history: historyReducer,
   },
 });
 

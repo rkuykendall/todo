@@ -23,3 +23,25 @@ export function formatAge(date: string | null): string {
   if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
   return `${Math.floor(diffDays / 365)} years ago`;
 }
+
+export const isNumber = (value: unknown): value is number =>
+  typeof value === 'number' && !isNaN(value);
+
+export const getDateFromISO = (isoString: string): Date => {
+  const parts = isoString.split('-');
+  if (parts.length !== 3 || parts.some((part) => !part)) {
+    throw new Error(`Invalid ISO date format: ${isoString}`);
+  }
+  const year = parseInt(parts[0]!, 10);
+  const month = parseInt(parts[1]!, 10);
+  const day = parseInt(parts[2]!, 10);
+  return new Date(year, month - 1, day); // month is 0-indexed
+};
+
+export const getDayName = (date: Date): string => {
+  return date.toLocaleDateString('en-US', { weekday: 'short' });
+};
+
+export const getDayNumber = (date: Date): number => {
+  return date.getDate();
+};

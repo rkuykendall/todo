@@ -2093,4 +2093,220 @@ describe('TicketService Unit Tests', () => {
       });
     });
   });
+
+  describe('getDailyHistory', () => {
+    test('should return empty array when no draws exist', () => {
+      const history = ticketService.getDailyHistory();
+      expect(history).toEqual([]);
+    });
+
+    test('should calculate daily stats correctly for a single day', () => {
+      // Create tickets
+      const ticket1Id = ticketService.createTicket({
+        title: 'Test Ticket 1',
+        frequency: 1,
+        can_draw_monday: true,
+      });
+      const ticket2Id = ticketService.createTicket({
+        title: 'Test Ticket 2',
+        frequency: 1,
+        can_draw_monday: true,
+      });
+
+      // Create draws for today - 2 completed, 1 skipped
+      ticketService.createSingleTicketDraw(ticket1Id, { done: true });
+      ticketService.createSingleTicketDraw(ticket2Id, { done: true });
+      ticketService.createSingleTicketDraw(ticket1Id, { skipped: true });
+
+      const history = ticketService.getDailyHistory();
+
+      // Should have today's data (and potentially empty days within 30-day range)
+      expect(history.length).toBeGreaterThanOrEqual(1);
+      // Find today's entry
+      const todayEntry = history.find((h) => h.date === '2025-05-12');
+      expect(todayEntry).toBeDefined();
+      expect(todayEntry).toMatchObject({
+        date: '2025-05-12', // Mock time is Monday, May 12, 2025
+        totalDraws: 3,
+        completedDraws: 2,
+        skippedDraws: 1,
+      });
+      expect(history[0]).toMatchObject({
+        date: '2025-05-12', // Mock time is Monday, May 12, 2025
+        totalDraws: 3,
+        completedDraws: 2,
+        skippedDraws: 1,
+      });
+    });
+
+    test('should aggregate data correctly across multiple days', () => {
+      // Create tickets
+      const ticket1Id = ticketService.createTicket({
+        title: 'Multi-day Test 1',
+        frequency: 1,
+        can_draw_monday: true,
+        can_draw_tuesday: true,
+      });
+      const ticket2Id = ticketService.createTicket({
+        title: 'Multi-day Test 2',
+        frequency: 1,
+        can_draw_monday: true,
+        can_draw_tuesday: true,
+      });
+
+      // Day 1 (May 12): 2 completed, 0 skipped
+      ticketService.createSingleTicketDraw(ticket1Id, {
+        done: true,
+        createdAt: '2025-05-12T14:00:00.000Z',
+      });
+      ticketService.createSingleTicketDraw(ticket2Id, {
+        done: true,
+        createdAt: '2025-05-12T15:00:00.000Z',
+      });
+
+      // Day 2 (May 13): 1 completed, 1 skipped
+      ticketService.createSingleTicketDraw(ticket1Id, {
+        done: true,
+        createdAt: '2025-05-13T14:00:00.000Z',
+      });
+      ticketService.createSingleTicketDraw(ticket2Id, {
+        skipped: true,
+        createdAt: '2025-05-13T15:00:00.000Z',
+      });
+
+      // Day 3 (May 14): 0 completed, 2 skipped
+      ticketService.createSingleTicketDraw(ticket1Id, {
+        skipped: true,
+        createdAt: '2025-05-14T14:00:00.000Z',
+      });
+      ticketService.createSingleTicketDraw(ticket2Id, {
+        skipped: true,
+        createdAt: '2025-05-14T15:00:00.000Z',
+      });
+
+      const history = ticketService.getDailyHistory();
+
+      // Should have at least the 3 days we created data for
+      expect(history.length).toBeGreaterThanOrEqual(3);
+
+      // Find the specific days we care about
+      const day14 = history.find((h) => h.date === '2025-05-14');
+      const day13 = history.find((h) => h.date === '2025-05-13');
+
+      expect(day14).toMatchObject({
+        date: '2025-05-14',
+        totalDraws: 2,
+        completedDraws: 0,
+        skippedDraws: 2,
+      });
+
+      expect(day13).toMatchObject({
+        date: '2025-05-13',
+        totalDraws: 2,
+        completedDraws: 1,
+        skippedDraws: 1,
+      });
+
+      const day12 = history.find((h) => h.date === '2025-05-12');
+      expect(day12).toMatchObject({
+        date: '2025-05-12',
+        totalDraws: 2,
+        completedDraws: 2,
+        skippedDraws: 0,
+      });
+    });
+
+    test('should handle edge case with no completions', () => {
+      const ticketId = ticketService.createTicket({
+        title: 'No Completions Test',
+        frequency: 1,
+        can_draw_monday: true,
+      });
+
+      // Create draws that are all skipped or incomplete
+      ticketService.createSingleTicketDraw(ticketId, { skipped: true });
+      ticketService.createSingleTicketDraw(ticketId, {
+        done: false,
+        skipped: false,
+      });
+
+      const history = ticketService.getDailyHistory();
+
+      // Should have at least today's entry
+      expect(history.length).toBeGreaterThanOrEqual(1);
+      const todayEntry = history.find((h) => h.date === '2025-05-12');
+      expect(todayEntry).toMatchObject({
+        date: '2025-05-12',
+        totalDraws: 2,
+        completedDraws: 0,
+        skippedDraws: 1, // Only one is explicitly skipped
+      });
+    });
+
+    test('should handle edge case with all completions (golden day)', () => {
+      const ticket1Id = ticketService.createTicket({
+        title: 'Golden Day Test 1',
+        frequency: 1,
+        can_draw_monday: true,
+      });
+      const ticket2Id = ticketService.createTicket({
+        title: 'Golden Day Test 2',
+        frequency: 1,
+        can_draw_monday: true,
+      });
+
+      // All draws completed
+      ticketService.createSingleTicketDraw(ticket1Id, { done: true });
+      ticketService.createSingleTicketDraw(ticket2Id, { done: true });
+
+      const history = ticketService.getDailyHistory();
+
+      // Should have at least today's entry
+      expect(history.length).toBeGreaterThanOrEqual(1);
+      const todayEntry = history.find((h) => h.date === '2025-05-12');
+      expect(todayEntry).toMatchObject({
+        date: '2025-05-12',
+        totalDraws: 2,
+        completedDraws: 2,
+        skippedDraws: 0,
+      });
+
+      // This should be a "golden" day (100% completion)
+      expect(history[0]?.completedDraws).toBe(history[0]?.totalDraws);
+    });
+
+    test('should filter by date range correctly using timezone-aware logic', () => {
+      const ticketId = ticketService.createTicket({
+        title: 'Timezone Test',
+        frequency: 1,
+        can_draw_monday: true,
+      });
+
+      // Create draws at different times but same local date
+      const sameDayTimes = [
+        '2025-05-12T06:00:00.000Z', // Midnight Central Time (day starts)
+        '2025-05-12T14:00:00.000Z', // 8 AM Central Time
+        '2025-05-12T23:59:59.000Z', // Late evening Central Time (day ends)
+      ];
+
+      sameDayTimes.forEach((time) => {
+        ticketService.createSingleTicketDraw(ticketId, {
+          done: true,
+          createdAt: time,
+        });
+      });
+
+      const history = ticketService.getDailyHistory();
+
+      // Should have at least today's entry
+      expect(history.length).toBeGreaterThanOrEqual(1);
+      const todayEntry = history.find((h) => h.date === '2025-05-12');
+      expect(todayEntry).toMatchObject({
+        date: '2025-05-12',
+        totalDraws: 3, // All should be grouped into same day
+        completedDraws: 3,
+        skippedDraws: 0,
+      });
+    });
+  });
 });
