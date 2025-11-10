@@ -48,9 +48,9 @@ export interface UpdateTicketData {
 export class TicketService {
   // SQL query constants
   private static readonly SELECT_DRAWS_BY_DATE =
-    "SELECT * FROM ticket_draw WHERE DATE(datetime(created_at, 'localtime')) = ?";
+    'SELECT * FROM ticket_draw WHERE DATE(created_at) = ?';
   private static readonly SELECT_TICKET_IDS_BY_DATE =
-    "SELECT ticket_id FROM ticket_draw WHERE DATE(datetime(created_at, 'localtime')) = ?";
+    'SELECT ticket_id FROM ticket_draw WHERE DATE(created_at) = ?';
   private static readonly INSERT_TICKET_DRAW = `
     INSERT INTO ticket_draw (id, created_at, ticket_id, done, skipped)
     VALUES (?, ?, ?, 0, 0)
@@ -163,7 +163,7 @@ export class TicketService {
 
       const existingDraw = this.db
         .prepare(
-          "SELECT * FROM ticket_draw WHERE ticket_id = ? AND DATE(datetime(created_at, 'localtime')) = DATE(?)"
+          'SELECT * FROM ticket_draw WHERE ticket_id = ? AND DATE(created_at) = DATE(?)'
         )
         .get(id, today);
 
@@ -268,22 +268,29 @@ export class TicketService {
     // Filter out tickets that already have draws and build priority list
     const selectedTickets: RawDbTicket[] = [];
 
-    const addUniqueTickets = (tickets: RawDbTicket[]) => {
+    const addUniqueTickets = (
+      tickets: RawDbTicket[],
+      respectMaxCount: boolean = true
+    ) => {
       for (const ticket of tickets) {
-        if (
-          !existingTicketIds.has(ticket.id) &&
-          selectedTickets.length + existingTicketIds.size < maxDrawCount
-        ) {
+        const alreadyHasDraw = existingTicketIds.has(ticket.id);
+        const wouldExceedMax =
+          respectMaxCount &&
+          selectedTickets.length + existingTicketIds.size >= maxDrawCount;
+
+        if (!alreadyHasDraw && !wouldExceedMax) {
           selectedTickets.push(ticket);
         }
       }
     };
 
     // Add tickets in prioritized order
-    addUniqueTickets(deadlineTickets);
-    addUniqueTickets(mustDrawTickets);
-    addUniqueTickets(approachingDeadlineTickets);
-    addUniqueTickets(canDrawTickets);
+    // Deadline and must-draw tickets ignore max count - they MUST be drawn
+    addUniqueTickets(deadlineTickets, false);
+    addUniqueTickets(mustDrawTickets, false);
+    // Approaching deadline and can-draw respect the max count
+    addUniqueTickets(approachingDeadlineTickets, true);
+    addUniqueTickets(canDrawTickets, true);
 
     return selectedTickets;
   }
@@ -528,13 +535,13 @@ export class TicketService {
 
     const query = `
       SELECT 
-        DATE(datetime(created_at, 'localtime')) as date,
+        DATE(created_at) as date,
         COUNT(*) as totalDraws,
         SUM(CASE WHEN done = 1 THEN 1 ELSE 0 END) as completedDraws,
         SUM(CASE WHEN skipped = 1 THEN 1 ELSE 0 END) as skippedDraws
       FROM ticket_draw 
-      WHERE DATE(datetime(created_at, 'localtime')) >= ?
-      GROUP BY DATE(datetime(created_at, 'localtime'))
+      WHERE DATE(created_at) >= ?
+      GROUP BY DATE(created_at)
       ORDER BY date DESC
     `;
 

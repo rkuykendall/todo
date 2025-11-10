@@ -17,7 +17,7 @@ const FREQUENCY_CONSTRAINT_SUBQUERY = `
     SELECT 1 FROM ticket_draw td
     WHERE td.ticket_id = t.id
     AND td.done = 1
-    AND julianday(DATE(?, 'localtime')) - julianday(DATE(td.created_at, 'localtime')) < t.frequency
+    AND julianday(DATE(?)) - julianday(DATE(td.created_at)) < t.frequency
   )
 `;
 

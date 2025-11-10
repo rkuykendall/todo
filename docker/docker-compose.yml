@@ -11,9 +11,9 @@ services:
       - '4000:4000'
     environment:
       - AUTH_PASSWORD=${AUTH_PASSWORD:-default-password}
+      - FRONTEND_URL=http://your-url-here:5173
     command: |
       bash -c '
-      main() {
         set -euxo pipefail
         echo "=== Starting backend container setup ==="
 
@@ -47,9 +47,6 @@ services:
 
         echo "Starting backend server..."
         npm start --workspace=backend
-      }
-
-      main
       '
 
   frontend:
@@ -66,7 +63,6 @@ services:
       - backend
     command: |
       bash -c '
-      main() {
         set -euxo pipefail
         echo "=== Starting frontend container setup ==="
 
@@ -106,7 +102,4 @@ services:
         echo "Installing and starting static file server..."
         npm install -g serve
         serve -s frontend/dist -l 5173
-      }
-
-      main
       '
