@@ -18,7 +18,7 @@ export function Header({ title, actions }: HeaderProps) {
 
   return (
     <Space
-      direction={screens.sm ? 'horizontal' : 'vertical'}
+      orientation={screens.sm ? 'horizontal' : 'vertical'}
       block
       className={headerClasses}
     >

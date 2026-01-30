@@ -27,8 +27,8 @@ export class TicketController {
 
   getTicketById: AsyncRequestHandler = async (req, res, next) => {
     try {
-      const { id } = req.params;
-      if (!id) {
+      const id = req.params.id;
+      if (!id || Array.isArray(id)) {
         throw new ValidationError('ID parameter is required');
       }
 
@@ -61,8 +61,8 @@ export class TicketController {
 
   updateTicket: AsyncRequestHandler = async (req, res, next) => {
     try {
-      const { id } = req.params;
-      if (!id) {
+      const id = req.params.id;
+      if (!id || Array.isArray(id)) {
         throw new ValidationError('ID parameter is required');
       }
 
@@ -94,8 +94,8 @@ export class TicketController {
 
   deleteTicket: AsyncRequestHandler = async (req, res, next) => {
     try {
-      const { id } = req.params;
-      if (!id) {
+      const id = req.params.id;
+      if (!id || Array.isArray(id)) {
         throw new ValidationError('ID parameter is required');
       }
 

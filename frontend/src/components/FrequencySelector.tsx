@@ -12,7 +12,7 @@ export function FrequencySelector({ value, onChange }: FrequencySelectorProps) {
   );
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }}>
+    <Space orientation="vertical" style={{ width: '100%' }}>
       <Radio.Group
         value={customFrequency ? 'custom' : (value ?? 1)}
         onChange={(e) => {

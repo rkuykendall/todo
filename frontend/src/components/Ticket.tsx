@@ -138,7 +138,7 @@ export const TicketCard = ({
     >
       <div>
         <Typography.Title level={5}>{ticket.title}</Typography.Title>
-        <Space direction="vertical" size={2}>
+        <Space orientation="vertical" size={2}>
           <div>Last drawn: {formatDate(ticket.last_drawn)}</div>
           <div>Created: {formatAge(ticket.created_at)}</div>
           {ticket.frequency !== 1 && (

@@ -25,8 +25,10 @@ export interface ApiErrorResponse {
 }
 
 // Enhanced Ticket interface with better typing
-export interface TicketWithStatus
-  extends Omit<import('./index.js').Ticket, 'done'> {
+export interface TicketWithStatus extends Omit<
+  import('./index.js').Ticket,
+  'done'
+> {
   status: TicketStatus;
 }
 

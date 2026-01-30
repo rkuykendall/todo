@@ -45,8 +45,8 @@ export class TicketDrawController {
 
   updateTicketDraw: AsyncRequestHandler = async (req, res, next) => {
     try {
-      const { id } = req.params;
-      if (!id) {
+      const id = req.params.id;
+      if (!id || Array.isArray(id)) {
         throw new ValidationError('ID parameter is required');
       }
 

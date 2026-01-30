@@ -199,7 +199,7 @@ function App() {
       >
         {contextHolder}
         <Honmoon visible={allDrawsCompleted}>
-          <Space direction="vertical" size="large" block>
+          <Space orientation="vertical" size="large" block>
             <HistoryGraph />
 
             <Header
@@ -279,7 +279,7 @@ function App() {
               ) : (
                 <Space
                   wrap={screens.sm}
-                  direction={screens.sm ? 'horizontal' : 'vertical'}
+                  orientation={screens.sm ? 'horizontal' : 'vertical'}
                   block={!screens.sm}
                   desktop
                 >
@@ -354,7 +354,7 @@ function App() {
               ) : (
                 <Space
                   wrap={screens.sm}
-                  direction={screens.sm ? 'horizontal' : 'vertical'}
+                  orientation={screens.sm ? 'horizontal' : 'vertical'}
                   block
                 >
                   {filteredTickets.map((ticket, index) => (

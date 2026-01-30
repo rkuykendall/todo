@@ -8,8 +8,10 @@ import styles from './Card.module.css';
 type MotionCardProps = Omit<CardProps, keyof MotionProps> & MotionProps;
 const MotionCard: React.ComponentType<MotionCardProps> = motion(AntCard);
 
-interface ExtendedCardProps
-  extends Pick<CardProps, 'actions' | 'title' | 'children' | 'style'> {
+interface ExtendedCardProps extends Pick<
+  CardProps,
+  'actions' | 'title' | 'children' | 'style'
+> {
   done?: boolean;
   index?: number;
 }

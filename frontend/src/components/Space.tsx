@@ -10,7 +10,7 @@ interface ExtendedSpaceProps extends SpaceProps {
 export function Space({
   block,
   desktop,
-  direction,
+  orientation,
   style,
   ...props
 }: ExtendedSpaceProps) {
@@ -18,7 +18,7 @@ export function Space({
 
   return (
     <AntSpace
-      direction={desktop && !screens.sm ? 'vertical' : direction}
+      orientation={desktop && !screens.sm ? 'vertical' : orientation}
       style={{
         width: block ? '100%' : undefined,
         ...style,

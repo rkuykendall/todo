@@ -210,7 +210,7 @@ export function denormalizeTicket(
 /**
  * Calculate daily draw count based on whether the previous day's target was met
  * Uses recursion to determine previous day's target and actual completion
- * Returns a value between 5-10: +1 if target was met, -1 if missed
+ * Returns a value between 3-10: +1 if target was met, -1 if missed
  * If no draws on previous day, looks back up to 7 days for the most recent data
  */
 export function calculateDailyDrawCount(

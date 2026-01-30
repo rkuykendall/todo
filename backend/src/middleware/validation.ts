@@ -63,7 +63,7 @@ export function validateIdParam(
   // Check if the ID parameter exists and has the right format (UUID)
   const uuidRegex =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (!id || !uuidRegex.test(id)) {
+  if (!id || Array.isArray(id) || !uuidRegex.test(id)) {
     const errorResponse = createErrorResponse(
       req,
       'Invalid ID format',

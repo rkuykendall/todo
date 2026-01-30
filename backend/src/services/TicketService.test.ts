@@ -920,16 +920,16 @@ describe('TicketService Unit Tests', () => {
   describe('Dynamic Draw Count Calculation', () => {
     // Tests for new recursive target-based system where targets adjust +1/-1 based on previous day performance
 
-    test('should return 5 when no historical data exists', () => {
-      // No draw history exists in fresh database, should default to 5
+    test('should return 3 when no historical data exists', () => {
+      // No draw history exists in fresh database, should default to 3
       const drawCount = ticketService.calculateDailyDrawCount();
-      expect(drawCount).toBe(5);
+      expect(drawCount).toBe(3);
     });
 
     test('should increase by 1 when previous day target was met', () => {
       // Create tickets for testing
       const tickets: string[] = [];
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < 3; i++) {
         tickets.push(
           ticketService.createTicket({
             title: `Test Ticket ${i}`,
@@ -939,10 +939,10 @@ describe('TicketService Unit Tests', () => {
         );
       }
 
-      // Set time to yesterday and create draws that meet the default target (5)
+      // Set time to yesterday and create draws that meet the default target (3)
       mockTimeProvider.setMockTime(new Date('2025-05-11T14:00:00.000Z'));
 
-      // Create 5 completed draws (meets the default target of 5)
+      // Create 3 completed draws (meets the default target of 3)
       for (const ticketId of tickets) {
         ticketService.createSingleTicketDraw(ticketId, { done: true });
       }
@@ -951,7 +951,7 @@ describe('TicketService Unit Tests', () => {
       mockTimeProvider.setMockTime(new Date('2025-05-12T14:00:00.000Z'));
 
       const drawCount = ticketService.calculateDailyDrawCount();
-      expect(drawCount).toBe(6); // Previous target (5) + 1 because target was met
+      expect(drawCount).toBe(4); // Previous target (3) + 1 because target was met
     });
 
     test('should decrease by 1 when previous day target was missed', () => {
@@ -970,7 +970,7 @@ describe('TicketService Unit Tests', () => {
       // Set time to yesterday and create draws that miss the target
       mockTimeProvider.setMockTime(new Date('2025-05-11T14:00:00.000Z'));
 
-      // Create only 3 completed draws (misses the default target of 5)
+      // Create only 3 completed draws (misses the default target of 3)
       for (const ticketId of tickets) {
         ticketService.createSingleTicketDraw(ticketId, { done: true });
       }
@@ -979,12 +979,12 @@ describe('TicketService Unit Tests', () => {
       mockTimeProvider.setMockTime(new Date('2025-05-12T14:00:00.000Z'));
 
       const drawCount = ticketService.calculateDailyDrawCount();
-      expect(drawCount).toBe(5); // Previous target (5) - 1 = 4, but minimum is 5
+      expect(drawCount).toBe(4); // Previous target (3) met with 3, so 3 + 1 = 4
     });
 
-    test('should respect minimum bound of 5', () => {
-      // Create a scenario where the recursive calculation would go below 5
-      // We need to create a chain of missed targets that would try to go below 5
+    test('should respect minimum bound of 3', () => {
+      // Create a scenario where the recursive calculation would go below 3
+      // We need to create a chain of missed targets that would try to go below 3
 
       // Create tickets
       const tickets: string[] = [];
@@ -998,23 +998,19 @@ describe('TicketService Unit Tests', () => {
         );
       }
 
-      // Set time to 2 days ago and create missed draws
+      // Set time to 2 days ago and create missed draws (0 completed)
       mockTimeProvider.setMockTime(new Date('2025-05-10T14:00:00.000Z'));
-      for (const ticketId of tickets) {
-        ticketService.createSingleTicketDraw(ticketId, { done: true }); // Only 2 completed, misses target of 5
-      }
+      ticketService.createSingleTicketDraw(tickets[0]!, { done: false }); // 0 completed, misses target of 3
 
-      // Move to yesterday and create more missed draws
+      // Move to yesterday and create more missed draws (0 completed)
       mockTimeProvider.setMockTime(new Date('2025-05-11T14:00:00.000Z'));
-      for (const ticketId of tickets) {
-        ticketService.createSingleTicketDraw(ticketId, { done: true }); // Only 2 completed, would try to go from 4 to 3
-      }
+      ticketService.createSingleTicketDraw(tickets[0]!, { done: false }); // 0 completed, would try to go from 3 to 2
 
       // Advance to "today"
       mockTimeProvider.setMockTime(new Date('2025-05-12T14:00:00.000Z'));
 
       const drawCount = ticketService.calculateDailyDrawCount();
-      expect(drawCount).toBe(5); // Cannot go below minimum of 5
+      expect(drawCount).toBe(3); // Cannot go below minimum of 3
     });
 
     test('should respect maximum bound of 10', () => {
@@ -1033,10 +1029,11 @@ describe('TicketService Unit Tests', () => {
         );
       }
 
-      let currentTarget = 5;
+      let currentTarget = 3;
 
       // Build up target over several days by consistently meeting targets
-      for (let daysBack = 6; daysBack >= 1; daysBack--) {
+      // Need 8 days to go from 3 to 10 (3->4->5->6->7->8->9->10)
+      for (let daysBack = 8; daysBack >= 1; daysBack--) {
         const date = new Date('2025-05-12T14:00:00.000Z');
         date.setDate(date.getDate() - daysBack);
         mockTimeProvider.setMockTime(date);
@@ -1074,14 +1071,14 @@ describe('TicketService Unit Tests', () => {
       mockTimeProvider.setMockTime(new Date('2025-05-09T14:00:00.000Z')); // 3 days ago
 
       for (const ticketId of tickets) {
-        ticketService.createSingleTicketDraw(ticketId, { done: true }); // 5 completed, meets target
+        ticketService.createSingleTicketDraw(ticketId, { done: true }); // 5 completed, meets target of 3
       }
 
       // Advance to today (skipping 2 days with no draws)
       mockTimeProvider.setMockTime(new Date('2025-05-12T14:00:00.000Z'));
 
       const drawCount = ticketService.calculateDailyDrawCount();
-      expect(drawCount).toBe(6); // Found data from 3 days ago: 5 + 1 = 6
+      expect(drawCount).toBe(4); // Found data from 3 days ago: target was 3, met, so 3 + 1 = 4
     });
 
     test('should return default when no draw data within 7 days', () => {
@@ -1108,7 +1105,7 @@ describe('TicketService Unit Tests', () => {
       mockTimeProvider.setMockTime(new Date('2025-05-12T14:00:00.000Z'));
 
       const drawCount = ticketService.calculateDailyDrawCount();
-      expect(drawCount).toBe(5); // No recent data within 7 days, use default
+      expect(drawCount).toBe(3); // No recent data within 7 days, use default of 3
     });
 
     test('should find most recent draw data when multiple days exist', () => {
@@ -1124,13 +1121,13 @@ describe('TicketService Unit Tests', () => {
         );
       }
 
-      // Create draws 3 days ago (5 completed, meets target of 5)
+      // Create draws 3 days ago (5 completed, meets target of 3)
       mockTimeProvider.setMockTime(new Date('2025-05-09T14:00:00.000Z'));
       for (let i = 0; i < 5; i++) {
         ticketService.createSingleTicketDraw(tickets[i]!, { done: true });
       }
 
-      // Create draws 2 days ago (3 completed, misses target of 6) - more recent
+      // Create draws 2 days ago (3 completed, misses target of 4) - more recent
       mockTimeProvider.setMockTime(new Date('2025-05-10T14:00:00.000Z'));
       for (let i = 0; i < 3; i++) {
         ticketService.createSingleTicketDraw(tickets[i]!, { done: true });
@@ -1140,7 +1137,7 @@ describe('TicketService Unit Tests', () => {
       mockTimeProvider.setMockTime(new Date('2025-05-12T14:00:00.000Z'));
 
       const drawCount = ticketService.calculateDailyDrawCount();
-      expect(drawCount).toBe(5); // Uses most recent (2 days ago): target was 6, missed, so 6-1=5
+      expect(drawCount).toBe(3); // Uses most recent (2 days ago): target was 4, missed, so 4-1=3
     });
   });
   describe('Draw Creation and Management', () => {
