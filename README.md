@@ -36,26 +36,32 @@ A personal task management system that helps organize daily tasks through a tick
 
 ## Development Setup
 
-1. Clone the repository and install dependencies:
+This is a monorepo using npm workspaces. Install dependencies from the root directory:
 
-   ```bash
-   npm install
-   ```
+```bash
+npm install
+```
 
-2. Start the backend server:
+Start the backend and frontend in separate terminals:
 
-   ```bash
-   cd backend
-   npm run dev
-   ```
+```bash
+cd backend && npm run dev   # Port 4000
+cd frontend && npm run dev  # Port 5173
+```
 
-3. Start the frontend development server:
-   ```bash
-   cd frontend
-   npm run dev
-   ```
+### Authentication
 
-By default, the backend runs on port 4000 and the frontend on port 5173.
+The backend uses Bearer token authentication. Set `AUTH_PASSWORD` environment variable or use the default password: `default-password`
+
+### Testing & Code Quality
+
+```bash
+npm run test      # Run all tests (backend, frontend, shared)
+npm run check     # Run format, lint, typecheck, and tests
+npm run build     # Build all workspaces (shared must build first)
+```
+
+Pre-commit hooks (Husky + lint-staged) enforce formatting and linting.
 
 ## Docker Deployment
 
@@ -81,3 +87,5 @@ The frontend will be available at port 5173 and the backend at port 4000.
 - `PORT`: Backend server port (default: 4000)
 - `DATABASE_PATH`: SQLite database path (default: /data/todo.db)
 - `VITE_API_DOMAIN`: Backend API URL for frontend (default: http://localhost:4000)
+- `AUTH_PASSWORD`: Backend authentication password (default: default-password)
+- `FRONTEND_URL`: CORS whitelist (default: localhost:3000, localhost:5173, localhost:4173)
