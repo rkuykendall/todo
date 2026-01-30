@@ -260,9 +260,14 @@ export class TicketService {
       .prepare<string[], RawDbTicket>(getApproachingDeadlineQuery(todayDay))
       .all(todayTimestamp, todayTimestamp, todayTimestamp);
 
-    // Finally, get eligible can-draw tickets without deadline constraints
-    const canDrawTickets: RawDbTicket[] = this.db
-      .prepare<string[], RawDbTicket>(getCanDrawQuery(todayDay, true))
+    // Fourth, get eligible recurring can-draw tickets (prioritized over non-recurring)
+    const recurringCanDrawTickets: RawDbTicket[] = this.db
+      .prepare<string[], RawDbTicket>(getCanDrawQuery(todayDay, true, true))
+      .all(todayTimestamp, todayTimestamp);
+
+    // Finally, get eligible non-recurring can-draw tickets
+    const nonRecurringCanDrawTickets: RawDbTicket[] = this.db
+      .prepare<string[], RawDbTicket>(getCanDrawQuery(todayDay, true, false))
       .all(todayTimestamp, todayTimestamp);
 
     // Filter out tickets that already have draws and build priority list
@@ -288,9 +293,10 @@ export class TicketService {
     // Deadline and must-draw tickets ignore max count - they MUST be drawn
     addUniqueTickets(deadlineTickets, false);
     addUniqueTickets(mustDrawTickets, false);
-    // Approaching deadline and can-draw respect the max count
+    // Approaching deadline, recurring can-draw, and non-recurring can-draw respect the max count
     addUniqueTickets(approachingDeadlineTickets, true);
-    addUniqueTickets(canDrawTickets, true);
+    addUniqueTickets(recurringCanDrawTickets, true);
+    addUniqueTickets(nonRecurringCanDrawTickets, true);
 
     return selectedTickets;
   }

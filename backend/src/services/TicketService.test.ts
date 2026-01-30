@@ -451,6 +451,47 @@ describe('TicketService Unit Tests', () => {
       });
     });
 
+    test('should prioritize recurring tickets over non-recurring tickets', () => {
+      // Create non-recurring tickets first (they would be selected first by default ordering)
+      const nonRecurringIds: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        const id = ticketService.createTicket({
+          title: `Non-Recurring ${i + 1}`,
+          recurring: false,
+          frequency: 7,
+          can_draw_monday: true,
+        });
+        nonRecurringIds.push(id);
+      }
+
+      // Create recurring tickets after (they should still be prioritized)
+      const recurringIds: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        const id = ticketService.createTicket({
+          title: `Recurring ${i + 1}`,
+          recurring: true,
+          frequency: 7,
+          can_draw_monday: true,
+        });
+        recurringIds.push(id);
+      }
+
+      const existingTicketIds = new Set<string>();
+      const eligibleTickets = ticketService.selectTicketsForDraw(
+        'monday',
+        existingTicketIds
+      );
+
+      // With maxDrawCount of 3, only recurring tickets should be selected
+      expect(eligibleTickets.length).toBe(3);
+
+      // All selected tickets should be recurring
+      eligibleTickets.forEach((ticket) => {
+        expect(recurringIds).toContain(ticket.id);
+        expect(nonRecurringIds).not.toContain(ticket.id);
+      });
+    });
+
     test('should handle mixed eligibility scenarios correctly', () => {
       // Create tickets with different eligibility scenarios
       const mustDrawMondayId = ticketService.createTicket({
@@ -2082,10 +2123,12 @@ describe('TicketService Unit Tests', () => {
         const dayString = ticketService.getTodayDayString();
         expect(dayString).toBe('monday'); // Should all be Monday in Central Time
 
+        // Use must_draw to bypass maxDrawCount limit (test is about timezone, not draw limits)
         const ticketId = ticketService.createTicket({
           title: `Timezone Test ${timeString}`,
           frequency: 1,
           can_draw_monday: true,
+          must_draw_monday: true,
         });
 
         expect(ticketService.isTicketEligibleForDay(ticketId, 'monday')).toBe(

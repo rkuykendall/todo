@@ -84,21 +84,31 @@ export function getMustDrawQuery(
  *
  * @param todayDay - The day of the week (e.g., "monday", "tuesday")
  * @param includeDeadlineFilter - Whether to exclude tickets with deadlines within 7 days
+ * @param recurring - Filter by recurring status: true for recurring only, false for non-recurring only, undefined for all
  * @returns SQL query string with two parameters: currentTimestamp, currentTimestamp
  */
 export function getCanDrawQuery(
   todayDay: string,
-  includeDeadlineFilter = true
+  includeDeadlineFilter = true,
+  recurring?: boolean
 ): string {
   const deadlineClause = includeDeadlineFilter
     ? 'AND (t.deadline is NULL OR julianday(t.deadline) - julianday(?) > 7)'
     : '';
+
+  const recurringClause =
+    recurring === true
+      ? 'AND t.recurring = 1'
+      : recurring === false
+        ? 'AND t.recurring = 0'
+        : '';
 
   return `
     SELECT t.* FROM ticket t
     WHERE t.must_draw_${todayDay} = 0
     AND ${getBaseTicketConditions(todayDay)}
     ${deadlineClause}
+    ${recurringClause}
     ${getFrequencyEligibilityClause()}
     ${STANDARD_TICKET_ORDER}
   `;
