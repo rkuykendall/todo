@@ -531,29 +531,27 @@ export class TicketService {
    * Get daily completion history
    */
   public getDailyHistory(): DailyHistory[] {
-    const days = 47; // Hardcoded to match header width
+    const limit = 32; // ~32px per day column fits typical content width
     // Use TimeProvider for consistent date calculation (works with mock times in tests)
-    const currentDate = new Date(this.timeProvider.getCurrentTimestamp());
-    const daysAgo = new Date(currentDate);
-    // Subtract (days - 1) to get the correct range: asking for 3 days should give today + 2 previous
-    daysAgo.setDate(currentDate.getDate() - (days - 1));
-    const cutoffDate = daysAgo.toISOString().split('T')[0] || '1970-01-01'; // Get YYYY-MM-DD format
+    const todayDate = this.timeProvider.getTodayDate();
 
+    // Get the most recent 32 days with draws, excluding today
     const query = `
-      SELECT 
+      SELECT
         DATE(created_at) as date,
         COUNT(*) as totalDraws,
         SUM(CASE WHEN done = 1 THEN 1 ELSE 0 END) as completedDraws,
         SUM(CASE WHEN skipped = 1 THEN 1 ELSE 0 END) as skippedDraws
-      FROM ticket_draw 
-      WHERE DATE(created_at) >= ?
+      FROM ticket_draw
+      WHERE DATE(created_at) < ?
       GROUP BY DATE(created_at)
       ORDER BY date DESC
+      LIMIT ?
     `;
 
     const rows = this.db
       .prepare<
-        string,
+        [string, number],
         {
           date: string;
           totalDraws: number;
@@ -561,7 +559,7 @@ export class TicketService {
           skippedDraws: number;
         }
       >(query)
-      .all(cutoffDate);
+      .all(todayDate, limit);
 
     return rows.map((row) => ({
       date: row.date,

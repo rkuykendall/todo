@@ -2189,26 +2189,32 @@ describe('TicketService Unit Tests', () => {
         can_draw_monday: true,
       });
 
-      // Create draws for today - 2 completed, 1 skipped
-      ticketService.createSingleTicketDraw(ticket1Id, { done: true });
-      ticketService.createSingleTicketDraw(ticket2Id, { done: true });
-      ticketService.createSingleTicketDraw(ticket1Id, { skipped: true });
+      // Create draws for May 12 - 2 completed, 1 skipped
+      ticketService.createSingleTicketDraw(ticket1Id, {
+        done: true,
+        createdAt: '2025-05-12T14:00:00.000Z',
+      });
+      ticketService.createSingleTicketDraw(ticket2Id, {
+        done: true,
+        createdAt: '2025-05-12T15:00:00.000Z',
+      });
+      ticketService.createSingleTicketDraw(ticket1Id, {
+        skipped: true,
+        createdAt: '2025-05-12T16:00:00.000Z',
+      });
+
+      // Set mock time to after the test data (today is excluded from history)
+      mockTimeProvider.setMockTime(new Date('2025-05-13T14:00:00.000Z'));
 
       const history = ticketService.getDailyHistory();
 
-      // Should have today's data (and potentially empty days within 30-day range)
+      // Should have May 12's data
       expect(history.length).toBeGreaterThanOrEqual(1);
-      // Find today's entry
-      const todayEntry = history.find((h) => h.date === '2025-05-12');
-      expect(todayEntry).toBeDefined();
-      expect(todayEntry).toMatchObject({
-        date: '2025-05-12', // Mock time is Monday, May 12, 2025
-        totalDraws: 3,
-        completedDraws: 2,
-        skippedDraws: 1,
-      });
-      expect(history[0]).toMatchObject({
-        date: '2025-05-12', // Mock time is Monday, May 12, 2025
+      // Find May 12's entry
+      const dayEntry = history.find((h) => h.date === '2025-05-12');
+      expect(dayEntry).toBeDefined();
+      expect(dayEntry).toMatchObject({
+        date: '2025-05-12',
         totalDraws: 3,
         completedDraws: 2,
         skippedDraws: 1,
@@ -2216,6 +2222,9 @@ describe('TicketService Unit Tests', () => {
     });
 
     test('should aggregate data correctly across multiple days', () => {
+      // Set mock time to after the test data so all days are in the past
+      mockTimeProvider.setMockTime(new Date('2025-05-15T14:00:00.000Z'));
+
       // Create tickets
       const ticket1Id = ticketService.createTicket({
         title: 'Multi-day Test 1',
@@ -2299,19 +2308,26 @@ describe('TicketService Unit Tests', () => {
         can_draw_monday: true,
       });
 
-      // Create draws that are all skipped or incomplete
-      ticketService.createSingleTicketDraw(ticketId, { skipped: true });
+      // Create draws that are all skipped or incomplete on May 12
+      ticketService.createSingleTicketDraw(ticketId, {
+        skipped: true,
+        createdAt: '2025-05-12T14:00:00.000Z',
+      });
       ticketService.createSingleTicketDraw(ticketId, {
         done: false,
         skipped: false,
+        createdAt: '2025-05-12T15:00:00.000Z',
       });
+
+      // Set mock time to after the test data (today is excluded from history)
+      mockTimeProvider.setMockTime(new Date('2025-05-13T14:00:00.000Z'));
 
       const history = ticketService.getDailyHistory();
 
-      // Should have at least today's entry
+      // Should have May 12's entry
       expect(history.length).toBeGreaterThanOrEqual(1);
-      const todayEntry = history.find((h) => h.date === '2025-05-12');
-      expect(todayEntry).toMatchObject({
+      const dayEntry = history.find((h) => h.date === '2025-05-12');
+      expect(dayEntry).toMatchObject({
         date: '2025-05-12',
         totalDraws: 2,
         completedDraws: 0,
@@ -2331,16 +2347,25 @@ describe('TicketService Unit Tests', () => {
         can_draw_monday: true,
       });
 
-      // All draws completed
-      ticketService.createSingleTicketDraw(ticket1Id, { done: true });
-      ticketService.createSingleTicketDraw(ticket2Id, { done: true });
+      // All draws completed on May 12
+      ticketService.createSingleTicketDraw(ticket1Id, {
+        done: true,
+        createdAt: '2025-05-12T14:00:00.000Z',
+      });
+      ticketService.createSingleTicketDraw(ticket2Id, {
+        done: true,
+        createdAt: '2025-05-12T15:00:00.000Z',
+      });
+
+      // Set mock time to after the test data (today is excluded from history)
+      mockTimeProvider.setMockTime(new Date('2025-05-13T14:00:00.000Z'));
 
       const history = ticketService.getDailyHistory();
 
-      // Should have at least today's entry
+      // Should have May 12's entry
       expect(history.length).toBeGreaterThanOrEqual(1);
-      const todayEntry = history.find((h) => h.date === '2025-05-12');
-      expect(todayEntry).toMatchObject({
+      const dayEntry = history.find((h) => h.date === '2025-05-12');
+      expect(dayEntry).toMatchObject({
         date: '2025-05-12',
         totalDraws: 2,
         completedDraws: 2,
@@ -2358,7 +2383,7 @@ describe('TicketService Unit Tests', () => {
         can_draw_monday: true,
       });
 
-      // Create draws at different times but same local date
+      // Create draws at different times but same local date (May 12)
       const sameDayTimes = [
         '2025-05-12T06:00:00.000Z', // Midnight Central Time (day starts)
         '2025-05-12T14:00:00.000Z', // 8 AM Central Time
@@ -2372,12 +2397,15 @@ describe('TicketService Unit Tests', () => {
         });
       });
 
+      // Set mock time to after the test data (today is excluded from history)
+      mockTimeProvider.setMockTime(new Date('2025-05-13T14:00:00.000Z'));
+
       const history = ticketService.getDailyHistory();
 
-      // Should have at least today's entry
+      // Should have May 12's entry
       expect(history.length).toBeGreaterThanOrEqual(1);
-      const todayEntry = history.find((h) => h.date === '2025-05-12');
-      expect(todayEntry).toMatchObject({
+      const dayEntry = history.find((h) => h.date === '2025-05-12');
+      expect(dayEntry).toMatchObject({
         date: '2025-05-12',
         totalDraws: 3, // All should be grouped into same day
         completedDraws: 3,
